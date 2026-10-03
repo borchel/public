@@ -1,0 +1,63 @@
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Quest MR→VR Portal</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#10121a;color:#fff;font:14px system-ui}header{padding:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}button{padding:10px 14px;border:1px solid #596170;border-radius:9px;background:#252b38;color:#fff}#mr{background:#087e75}#vr{background:#6547d8}button:disabled{opacity:.4}#view{height:calc(100vh - 95px);position:relative;overflow:hidden}#place{display:none;position:absolute;z-index:5;left:50%;bottom:22px;transform:translateX(-50%);background:#087e75}#msg{color:#c7ccd6}</style></head>
+<body><header><b>Psychedelic MR → VR Portal</b><button id="mr" disabled>MR prüfen…</button><button id="vr" disabled>VR prüfen…</button><span id="msg">Lade…</span></header><div id="view"><button id="place">Portal & Garten platzieren</button></div>
+<script type="module">
+const T=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm'),$=s=>document.querySelector(s),view=$('#view'),mr=$('#mr'),vr=$('#vr'),msg=$('#msg'),place=$('#place');
+const scene=new T.Scene(),cam=new T.PerspectiveCamera(70,1,.03,120),ren=new T.WebGLRenderer({alpha:true,antialias:true});ren.xr.enabled=true;ren.setPixelRatio(Math.min(devicePixelRatio,2));ren.outputColorSpace=T.SRGBColorSpace;ren.toneMapping=T.ACESFilmicToneMapping;ren.toneMappingExposure=1.3;view.prepend(ren.domElement);
+scene.add(new T.HemisphereLight(0xffffff,0x333355,3));const dl=new T.DirectionalLight(0xffddbb,3);dl.position.set(5,10,4);scene.add(dl);
+
+/* MR foreground */
+const mrWorld=new T.Group();mrWorld.visible=false;scene.add(mrWorld);
+const base=new T.Mesh(new T.CircleGeometry(2.6,48),new T.MeshStandardMaterial({color:0x35aa58,transparent:true,opacity:.25,depthWrite:false}));base.rotation.x=-Math.PI/2;mrWorld.add(base);
+for(let i=0;i<8;i++){let c=new T.Color().setHSL(i/8,.95,.6),m=new T.Mesh(new T.SphereGeometry(.12+.06*Math.random(),12,8),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.4}));let a=i/8*Math.PI*2;m.position.set(Math.cos(a)*1.8,.25+Math.random()*.7,Math.sin(a)*1.8);mrWorld.add(m)}
+
+/* Portal */
+const portalRoot=new T.Group();portalRoot.position.set(0,1.15,-1.9);mrWorld.add(portalRoot);
+const portalMat=new T.MeshStandardMaterial({color:0x54ddff,emissive:0x20baff,emissiveIntensity:4,side:T.DoubleSide});
+const ring=new T.Mesh(new T.TorusGeometry(.82,.085,16,56),portalMat);portalRoot.add(ring);
+const veilMat=new T.MeshBasicMaterial({color:0x7d3cff,transparent:true,opacity:.42,side:T.DoubleSide});
+const veil=new T.Mesh(new T.CircleGeometry(.74,48),veilMat);portalRoot.add(veil);
+
+/* Full VR world, initially hidden */
+const vrWorld=new T.Group();vrWorld.visible=false;scene.add(vrWorld);
+const floor=new T.Mesh(new T.PlaneGeometry(80,80),new T.MeshStandardMaterial({color:0x19052d,roughness:.8,emissive:0x10001f,emissiveIntensity:.5}));floor.rotation.x=-Math.PI/2;vrWorld.add(floor);
+for(let i=0;i<180;i++){let c=new T.Color().setHSL(Math.random(),1,.6),p=new T.Mesh(new T.SphereGeometry(.025+Math.random()*.07,7,5),new T.MeshBasicMaterial({color:c}));p.position.set((Math.random()-.5)*45,.2+Math.random()*12,(Math.random()-.5)*45);p.userData={b:p.position.y,q:Math.random()*6.28};vrWorld.add(p)}
+for(let i=0;i<35;i++){let c=new T.Color().setHSL(Math.random(),.95,.55),h=.5+Math.random()*1.7,g=new T.Group(),stem=new T.Mesh(new T.CylinderGeometry(.05,.12,h*.65,8),new T.MeshStandardMaterial({color:0xeee0c8}));stem.position.y=h*.32;g.add(stem);let cap=new T.Mesh(new T.SphereGeometry(h*.25,14,8,0,Math.PI*2,0,Math.PI/2),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:1.8}));cap.position.y=h*.65;g.add(cap);g.position.set((Math.random()-.5)*22,0,-3-Math.random()*25);vrWorld.add(g)}
+const sun=new T.Mesh(new T.SphereGeometry(2,28,20),new T.MeshBasicMaterial({color:0xff44cc}));sun.position.set(0,7,-24);vrWorld.add(sun);
+const tunnel=new T.Group();vrWorld.add(tunnel);for(let z=0;z<14;z++){let c=new T.Color().setHSL(z/14,.9,.55),tor=new T.Mesh(new T.TorusGeometry(3+.15*Math.sin(z),.07,10,48),new T.MeshBasicMaterial({color:c}));tor.position.set(0,2.2,-4-z*2);tunnel.add(tor)}
+
+/* AR hit-test reticle */
+const ret=new T.Mesh(new T.RingGeometry(.08,.12,32),new T.MeshBasicMaterial({color:0x22ffff,side:T.DoubleSide}));ret.rotation.x=-Math.PI/2;ret.matrixAutoUpdate=false;ret.visible=false;scene.add(ret);
+let hs,local,lastPose,placed=false,mode='desktop',transition=0,transitioning=false,lastSide=null;
+
+/* Controllers */
+const ray=new T.Raycaster(),tmp=new T.Matrix4(),targets=[portalRoot];
+for(let i=0;i<2;i++){let c=ren.xr.getController(i),line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3(0,0,-1)]),new T.LineBasicMaterial({color:0xffffff}));line.scale.z=6;c.add(line);c.addEventListener('selectstart',()=>{tmp.identity().extractRotation(c.matrixWorld);ray.ray.origin.setFromMatrixPosition(c.matrixWorld);ray.ray.direction.set(0,0,-1).applyMatrix4(tmp);if(ray.intersectObjects(targets,true).length){portalMat.emissiveIntensity=9;setTimeout(()=>portalMat.emissiveIntensity=4,500)}});scene.add(c)}
+
+/* Portal crossing detection in MR */
+const head=new T.Vector3(),portalPos=new T.Vector3(),portalNormal=new T.Vector3(),q=new T.Quaternion();
+function checkPortal(){
+ if(mode!=='mr'||!placed||transitioning)return;
+ cam.getWorldPosition(head);portalRoot.getWorldPosition(portalPos);portalRoot.getWorldQuaternion(q);portalNormal.set(0,0,1).applyQuaternion(q);
+ const rel=head.clone().sub(portalPos),side=rel.dot(portalNormal),lateral=Math.hypot(rel.x,rel.z),dy=Math.abs(rel.y-0.45);
+ if(lastSide===null)lastSide=side;
+ if(lastSide>0.08&&side<-0.08&&lateral<1.15&&dy<1.5)startTransition();
+ lastSide=side;
+}
+function startTransition(){transitioning=true;transition=0;vrWorld.visible=true;msg.textContent='Portal durchquert · Übergang in die virtuelle Welt';}
+function updateTransition(dt){
+ if(!transitioning)return;transition=Math.min(1,transition+dt*.55);veilMat.opacity=.42+transition*.5;portalMat.emissiveIntensity=4+transition*8;
+ ren.setClearColor(new T.Color().setHSL(.78,.75,.06+transition*.05),transition);
+ if(transition>=1){mode='vrinside';mrWorld.visible=false;scene.background=new T.Color(0x100018);ren.setClearColor(0x100018,1);msg.textContent='Virtuelle Disco-Welt · du bist durch das Portal gegangen';transitioning=false}
+}
+
+/* support/session */
+async function support(){if(!navigator.xr){msg.textContent='Kein WebXR';return}let a=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false),v=await navigator.xr.isSessionSupported('immersive-vr').catch(()=>false);mr.disabled=!a;vr.disabled=!v;mr.textContent=a?'Enter MR':'MR nicht verfügbar';vr.textContent=v?'Direkt VR':'VR nicht verfügbar';msg.textContent=`WebXR: MR ${a?'✓':'–'} · VR ${v?'✓':'–'}`}
+mr.onclick=async()=>{try{scene.background=null;mrWorld.visible=false;vrWorld.visible=false;placed=false;lastSide=null;const s=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['local-floor','hand-tracking','dom-overlay'],domOverlay:{root:document.body}});ren.xr.setReferenceSpaceType('local');await ren.xr.setSession(s);mode='mr';local=await s.requestReferenceSpace('local');let viewer=await s.requestReferenceSpace('viewer');hs=await s.requestHitTestSource({space:viewer});msg.textContent='MR aktiv · Boden scannen';s.addEventListener('end',()=>location.reload())}catch(e){msg.textContent='MR-Fehler: '+e.message}};
+vr.onclick=async()=>{try{scene.background=new T.Color(0x100018);mrWorld.visible=false;vrWorld.visible=true;const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','hand-tracking']});ren.xr.setReferenceSpaceType('local-floor');await ren.xr.setSession(s);mode='vrinside';msg.textContent='Direkter VR-Modus';s.addEventListener('end',()=>location.reload())}catch(e){msg.textContent='VR-Fehler: '+e.message}};
+place.onclick=()=>{if(lastPose){let p=lastPose.transform.position;mrWorld.position.set(p.x,p.y,p.z);mrWorld.visible=true;placed=true;ret.visible=false;place.style.display='none';msg.textContent='Portal platziert · gehe physisch durch den leuchtenden Ring';lastSide=null}};
+
+function resize(){if(ren.xr.isPresenting)return;let w=view.clientWidth,h=view.clientHeight;ren.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}new ResizeObserver(resize).observe(view);resize();support();
+let last=performance.now();
+ren.setAnimationLoop((t,f)=>{let dt=Math.min(.04,(t-last)/1000);last=t;if(mode==='mr'&&f&&hs&&!placed){let h=f.getHitTestResults(hs);if(h.length){lastPose=h[0].getPose(local);ret.visible=true;ret.matrix.fromArray(lastPose.transform.matrix);place.style.display='block'}else{ret.visible=false;place.style.display='none'}}checkPortal();updateTransition(dt);ring.rotation.z+=dt*.7;tunnel.rotation.z+=dt*.12;vrWorld.children.forEach(o=>{if(o.userData.b!==undefined)o.position.y=o.userData.b+Math.sin(t*.002+o.userData.q)*.12});ren.render(scene,cam)});
+</script></body></html>
