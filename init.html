@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Psychedelic XR Garden – Desktop / VR / AR</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:#11131b;color:#fff}
+header{padding:12px 14px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+h1{font-size:18px;margin:0}.small{font-size:12px;color:#c2c8d4;margin-top:3px}
+.actions{display:flex;gap:7px;flex-wrap:wrap}
+button{min-height:44px;padding:9px 13px;border:1px solid #596170;border-radius:9px;background:#232936;color:#fff;font-size:15px}
+button.primary{background:#6849db;border-color:#8067e4}button.ar{background:#087e75;border-color:#13a79b}button:disabled{opacity:.42}
+#view{position:relative;width:100%;height:calc(100vh - 155px);min-height:430px;background:#8edcff;overflow:hidden;touch-action:none}
+.help{position:absolute;z-index:2;left:10px;top:10px;background:rgba(255,255,255,.84);color:#251f32;padding:8px 10px;border-radius:8px;font-size:11px;line-height:1.45;pointer-events:none}
+#place{display:none;position:absolute;z-index:4;left:50%;bottom:18px;transform:translateX(-50%);background:#087e75;border-color:#20c6b7}
+footer{padding:10px 14px;display:flex;gap:14px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.pad{display:grid;grid-template-columns:44px 44px 44px;gap:5px}.up{grid-column:2}.left{grid-column:1}.down{grid-column:2}.right{grid-column:3}
+.info{font-size:12px;color:#c2c8d4}.big{font-size:17px;font-weight:700;color:#fff}
+@media(max-width:650px){#view{height:64vh;min-height:360px}.help{font-size:10px}}
+</style>
+</head>
+<body>
+<header>
+ <div><h1>Psychedelic XR Garden</h1><div id="status" class="small">Lade 3D-Welt …</div></div>
+ <div class="actions">
+  <button id="vr" class="primary" disabled>VR prüfen …</button>
+  <button id="ar" class="ar" disabled>AR prüfen …</button>
+  <button id="bird" disabled>Vogelperspektive</button>
+  <button id="reset" disabled>Reset</button>
+ </div>
+</header>
+<div id="view">
+ <div class="help"><b>Desktop:</b> WASD/Pfeile<br><b>VR:</b> Controller-Trigger = Teleport<br><b>AR:</b> Boden suchen → „Garten platzieren“</div>
+ <button id="place">Garten platzieren</button>
+</div>
+<footer>
+ <div class="pad">
+  <button id="up" class="up" disabled>▲</button><button id="left" class="left" disabled>◀</button>
+  <button id="down" class="down" disabled>▼</button><button id="right" class="right" disabled>▶</button>
+ </div>
+ <div><div id="cap" class="info">WebXR wird geprüft …</div><div id="dist" class="big">Ziel: ?</div></div>
+</footer>
+
+<script type="module">
+const $=s=>document.querySelector(s),view=$('#view'),status=$('#status'),vr=$('#vr'),ar=$('#ar'),birdBtn=$('#bird'),
+resetBtn=$('#reset'),placeBtn=$('#place'),cap=$('#cap'),dist=$('#dist');
+try{
+ const THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm');
+ const scene=new THREE.Scene();scene.background=new THREE.Color(0x8edcff);scene.fog=new THREE.FogExp2(0xbcecff,.006);
+ const camera=new THREE.PerspectiveCamera(70,1,.05,180);
+ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:false});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.outputColorSpace=THREE.SRGBColorSpace;
+ renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.35;renderer.xr.enabled=true;
+ renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';view.appendChild(renderer.domElement);
+
+ const rig=new THREE.Group();rig.add(camera);scene.add(rig);
+ const world=new THREE.Group();scene.add(world);
+ const hemi=new THREE.HemisphereLight(0xffffff,0x4f9b52,3.5);scene.add(hemi);
+ const sun=new THREE.DirectionalLight(0xfff1d1,4);sun.position.set(-12,25,10);scene.add(sun);
+
+ const ground=new THREE.Mesh(new THREE.PlaneGeometry(70,70),new THREE.MeshStandardMaterial({color:0x65c95e,roughness:.78,emissive:0x174b1b,emissiveIntensity:.18}));
+ ground.rotation.x=-Math.PI/2;world.add(ground);
+
+ const maze=['#############','#.....#.....#','#.###.#.###.#','#.#...#...#.#','#.#.#####.#.#','#.#.......#.#','#.####.####.#','#....#.#....#','####.#.#.####','#....#......#','#.######.##.#','#..........G#','#############'];
+ const cell=3.6,off=(maze.length-1)*cell/2,walls=[];
+ for(let z=0;z<maze.length;z++)for(let x=0;x<maze[z].length;x++){
+  const wx=x*cell-off,wz=z*cell-off;
+  if(maze[z][x]==='#'){
+   const c=new THREE.Color().setHSL(.26+Math.random()*.16,.76,.43);
+   const m=new THREE.Mesh(new THREE.BoxGeometry(cell,2.8,cell),new THREE.MeshStandardMaterial({color:c,roughness:.58,emissive:c,emissiveIntensity:.13}));
+   m.position.set(wx,1.4,wz);world.add(m);walls.push({x:wx,z:wz});
+  } else if(Math.random()<.34){
+   const stem=new THREE.Mesh(new THREE.CylinderGeometry(.07,.13,1.25,7),new THREE.MeshStandardMaterial({color:0x24a541}));
+   stem.position.set(wx+(Math.random()-.5)*2,.625,wz+(Math.random()-.5)*2);world.add(stem);
+   const fc=new THREE.Color().setHSL(Math.random(),.96,.62);
+   const fl=new THREE.Mesh(new THREE.SphereGeometry(.33,10,8),new THREE.MeshStandardMaterial({color:fc,emissive:fc,emissiveIntensity:.65}));
+   fl.position.copy(stem.position);fl.position.y=1.36;world.add(fl);
+  }
+ }
+ const gx=11*cell-off,gz=11*cell-off,disco=new THREE.Group();disco.position.set(gx,0,gz);world.add(disco);
+ const domeMat=new THREE.MeshStandardMaterial({color:0xff5ddd,metalness:.4,roughness:.2,emissive:0xff20b7,emissiveIntensity:2.5});
+ const dome=new THREE.Mesh(new THREE.SphereGeometry(1.55,28,16,0,Math.PI*2,0,Math.PI/2),domeMat);dome.position.y=1.8;disco.add(dome);
+ const ball=new THREE.Mesh(new THREE.SphereGeometry(.72,24,18),new THREE.MeshStandardMaterial({color:0xffffff,metalness:.9,roughness:.08,emissive:0xffbaff,emissiveIntensity:2}));
+ ball.position.y=3.8;disco.add(ball);
+ [0xff33bb,0x22ddff,0xaaff22,0xffbb22,0xaa66ff].forEach((c,i)=>{const l=new THREE.PointLight(c,32,15);l.position.set(Math.cos(i*1.256)*3,2.5,Math.sin(i*1.256)*3);disco.add(l)});
+ for(let i=0;i<85;i++){const c=new THREE.Color().setHSL(Math.random(),1,.64),p=new THREE.Mesh(new THREE.SphereGeometry(.08+Math.random()*.12,7,5),new THREE.MeshBasicMaterial({color:c}));
+  p.position.set((Math.random()-.5)*52,.8+Math.random()*7,(Math.random()-.5)*52);p.userData={spark:1,base:p.position.y,phase:Math.random()*6.28};world.add(p)}
+
+ let px=1*cell-off,pz=1*cell-off,yaw=0,bird=false,last=performance.now(),mode='desktop';
+ rig.position.set(px,0,pz);
+ const blocked=(x,z)=>walls.some(w=>Math.abs(x-w.x)<cell*.54&&Math.abs(z-w.z)<cell*.54);
+ function move(v){const s=.5,nx=px-Math.sin(yaw)*v*s,nz=pz-Math.cos(yaw)*v*s;if(!blocked(nx,nz)){px=nx;pz=nz}}
+ const turn=v=>yaw+=v,keys={};
+ addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+ $('#up').onclick=()=>move(1);$('#down').onclick=()=>move(-1);$('#left').onclick=()=>turn(.22);$('#right').onclick=()=>turn(-.22);
+ birdBtn.onclick=()=>{bird=!bird;birdBtn.textContent=bird?'Ich-Perspektive':'Vogelperspektive'};
+ resetBtn.onclick=()=>{px=1*cell-off;pz=1*cell-off;yaw=0;bird=false;world.position.set(0,0,0);world.scale.setScalar(1);rig.position.set(px,0,pz)};
+
+ const ray=new THREE.Raycaster(),tmp=new THREE.Matrix4(),marker=new THREE.Mesh(new THREE.RingGeometry(.28,.42,32),new THREE.MeshBasicMaterial({color:0x30ffff,side:THREE.DoubleSide}));
+ marker.rotation.x=-Math.PI/2;marker.visible=false;scene.add(marker);const ctrls=[];
+ for(let i=0;i<2;i++){const c=renderer.xr.getController(i),line=new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,-1)]),new THREE.LineBasicMaterial({color:0xffffff}));
+  line.scale.z=10;c.add(line);c.userData.line=line;c.addEventListener('selectstart',()=>{if(mode==='vr'&&marker.visible&&!blocked(marker.position.x,marker.position.z)){px=marker.position.x;pz=marker.position.z;rig.position.set(px,0,pz)}});rig.add(c);ctrls.push(c)}
+ function vrTeleport(){if(mode!=='vr'||!renderer.xr.isPresenting){if(mode!=='ar')marker.visible=false;return}let f=false;for(const c of ctrls){tmp.identity().extractRotation(c.matrixWorld);ray.ray.origin.setFromMatrixPosition(c.matrixWorld);ray.ray.direction.set(0,0,-1).applyMatrix4(tmp);const hit=ray.intersectObject(ground,false)[0];if(hit&&!blocked(hit.point.x,hit.point.z)){marker.position.copy(hit.point);marker.position.y+=.025;marker.visible=true;c.userData.line.scale.z=Math.min(12,hit.distance);f=true;break}}if(!f)marker.visible=false}
+
+ let hitSource=null,refSpace=null,viewerSpace=null,arHitPose=null,arPlaced=false;
+ async function startAR(){
+  try{
+   renderer.setClearColor(0x000000,0);scene.background=null;scene.fog=null;world.visible=false;marker.visible=false;arPlaced=false;
+   const s=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['local-floor','dom-overlay'],domOverlay:{root:document.body}});
+   renderer.xr.setReferenceSpaceType('local');
+   await renderer.xr.setSession(s);mode='ar';status.textContent='AR aktiv · bewege das Gerät und suche eine Bodenfläche';ar.textContent='AR beenden';vr.disabled=true;
+   refSpace=await s.requestReferenceSpace('local');viewerSpace=await s.requestReferenceSpace('viewer');hitSource=await s.requestHitTestSource({space:viewerSpace});
+   s.addEventListener('end',()=>{mode='desktop';hitSource=null;arHitPose=null;marker.visible=false;world.visible=true;renderer.setClearColor(0x8edcff,1);scene.background=new THREE.Color(0x8edcff);scene.fog=new THREE.FogExp2(0xbcecff,.006);ar.textContent='Enter AR';vr.disabled=false;placeBtn.style.display='none';status.textContent='Desktop-Modus'});
+  }catch(e){status.textContent='AR konnte nicht gestartet werden: '+e.message;world.visible=true;scene.background=new THREE.Color(0x8edcff)}
+ }
+ placeBtn.onclick=()=>{if(mode==='ar'&&arHitPose){const t=arHitPose.transform;world.position.set(t.position.x,t.position.y,t.position.z);world.scale.setScalar(.12);world.visible=true;arPlaced=true;marker.visible=false;placeBtn.style.display='none';status.textContent='AR-Garten platziert · bewege dich real um die Szene'}};
+
+ async function checkXR(){
+  if(!navigator.xr){cap.textContent='Dieser Browser bietet kein WebXR.';vr.textContent='VR nicht verfügbar';ar.textContent='AR nicht verfügbar';return}
+  let v=false,a=false;try{v=await navigator.xr.isSessionSupported('immersive-vr')}catch{}try{a=await navigator.xr.isSessionSupported('immersive-ar')}catch{}
+  vr.disabled=!v;ar.disabled=!a;vr.textContent=v?'Enter VR':'VR nicht verfügbar';ar.textContent=a?'Enter AR':'AR nicht verfügbar';
+  cap.textContent='WebXR: '+(v?'VR ✓':'VR –')+' · '+(a?'AR ✓':'AR –');
+ }
+ vr.onclick=async()=>{try{if(renderer.xr.isPresenting&&mode==='vr'){await renderer.xr.getSession()?.end();return}
+  renderer.xr.setReferenceSpaceType('local-floor');const s=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});await renderer.xr.setSession(s);mode='vr';scene.background=new THREE.Color(0x8edcff);world.visible=true;vr.textContent='VR beenden';ar.disabled=true;status.textContent='VR aktiv · Trigger = Teleport';
+  s.addEventListener('end',()=>{mode='desktop';vr.textContent='Enter VR';ar.disabled=false;status.textContent='Desktop-Modus'});
+ }catch(e){status.textContent='VR konnte nicht gestartet werden: '+e.message}};
+ ar.onclick=async()=>{if(renderer.xr.isPresenting&&mode==='ar'){await renderer.xr.getSession()?.end();return}await startAR()};
+
+ function resize(){if(renderer.xr.isPresenting)return;const w=view.clientWidth,h=view.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}new ResizeObserver(resize).observe(view);resize();
+ [birdBtn,resetBtn,$('#up'),$('#down'),$('#left'),$('#right')].forEach(b=>b.disabled=false);checkXR();status.textContent='Bereit · Desktop / VR / AR';
+
+ renderer.setAnimationLoop((now,frame)=>{
+  const dt=Math.min(.04,(now-last)/1000);last=now;
+  if(mode==='desktop'){if(keys.w||keys.arrowup)move(dt*8);if(keys.s||keys.arrowdown)move(-dt*8);if(keys.a||keys.arrowleft)turn(dt*2);if(keys.d||keys.arrowright)turn(-dt*2);
+   if(bird){camera.position.set(0,35,3);camera.lookAt(0,0,0);rig.position.set(px,0,pz)}else{camera.position.set(0,1.65,0);camera.rotation.set(0,yaw,0);rig.position.set(px,0,pz)}}
+  if(mode==='ar'&&frame&&hitSource&&!arPlaced){const hits=frame.getHitTestResults(hitSource);if(hits.length){arHitPose=hits[0].getPose(refSpace);if(arHitPose){const p=arHitPose.transform.position;marker.position.set(p.x,p.y+.01,p.z);marker.scale.setScalar(.6);marker.visible=true;placeBtn.style.display='block';status.textContent='Boden erkannt · Garten hier platzieren'}}else{marker.visible=false;placeBtn.style.display='none'}}
+  vrTeleport();disco.rotation.y+=dt*.8;ball.rotation.y+=dt*2;world.traverse(o=>{if(o.userData.spark)o.position.y=o.userData.base+Math.sin(now*.002+o.userData.phase)*.45});
+  const d=Math.hypot(px-gx,pz-gz);dist.textContent=mode==='ar'?(arPlaced?'AR-Garten platziert':'Boden suchen …'):'Ziel: '+d.toFixed(1)+' m';domeMat.emissiveIntensity=d<2.2?5:2.5;
+  renderer.render(scene,camera);
+ });
+}catch(e){status.textContent='Fehler beim Start: '+e.message;cap.textContent='Three.js/WebGL konnte nicht initialisiert werden.'}
+</script>
+</body>
+</html>
