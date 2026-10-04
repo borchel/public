@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Asteroids - Psychedelic Arcade</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #050510;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #game-root {
+      width: 100vw;
+      height: 100vh;
+    }
+    .hud {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 10;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.36);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 14px;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+    }
+    .error {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: #070707;
+      color: #fff;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      white-space: pre-wrap;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-root"></div>
+  <div class="hud">Steuerung: ← → drehen · ↑ Schub · Leertaste schießen · Ziel: Asteroidenfelder auflösen</div>
+  <div id="error" class="error"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+  <script type="module">
+    import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.esm.js';
+
+    const WIDTH = 960;
+    const HEIGHT = 640;
+    const PLAYER_TURN_SPEED = 3.2;
+    const PLAYER_THRUST = 220;
+    const PLAYER_DRAG = 0.9985;
+    const PLAYER_MAX_SPEED = 360;
+    const BULLET_SPEED = 470;
+    const BULLET_LIFETIME = 950;
+    const FIRE_DELAY = 145;
+    const MAX_PLAYER_BULLETS = 4;
+    const START_LIVES = 3;
+    const START_WAVE = 1;
+    const RESPAWN_DELAY = 1000;
+    const INVULNERABILITY_DURATION = 2200;
+    const SAFE_RESPAWN_RADIUS = 130;
+    const SAUCER_BULLET_SPEED = 260;
+    const SAUCER_SPAWN_MIN = 9;
+    const SAUCER_SPAWN_MAX = 16;
+    const ENABLE_SELF_TESTS = false;
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function wrapPosition(object, width, height, margin = 24) {
+      if (object.x < -margin) object.x = width + margin;
+      if (object.x > width + margin) object.x = -margin;
+      if (object.y < -margin) object.y = height + margin;
+      if (object.y > height + margin) object.y = -margin;
+    }
+
+    function getAsteroidSpeed(size) {
+      return size === 3 ? 46 : size === 2 ? 72 : 108;
+    }
+
+    function getAsteroidScore(size) {
+      return size === 3 ? 20 : size === 2 ? 50 : 100;
+    }
+
+    function getWaveAsteroidCount(wave) {
+      return Math.min(11, 4 + wave);
+    }
+
+    function getSaucerSpawnDelay() {
+      return Phaser.Math.FloatBetween(SAUCER_SPAWN_MIN, SAUCER_SPAWN_MAX);
+    }
+
+    function isPointSafe(x, y, asteroids, radius) {
+      return asteroids.every((asteroid) => Phaser.Math.Distance.Between(x, y, asteroid.x, asteroid.y) > asteroid.radius + radius);
+    }
+
+    function runTests() {
+      assert(clamp(5, 0, 3) === 3, 'Test fehlgeschlagen: clamp oben');
+      assert(clamp(-2, 0, 3) === 0, 'Test fehlgeschlagen: clamp unten');
+      assert(clamp(2, 0, 3) === 2, 'Test fehlgeschlagen: clamp innen');
+
+      const obj = { x: -30, y: 100 };
+      wrapPosition(obj, 960, 640);
+      assert(obj.x > 960, 'Test fehlgeschlagen: wrap links nach rechts');
+
+      assert(getAsteroidSpeed(3) < getAsteroidSpeed(1), 'Test fehlgeschlagen: kleine Asteroiden sollten schneller sein');
+      assert(getAsteroidScore(1) > getAsteroidScore(3), 'Test fehlgeschlagen: kleine Asteroiden sollten mehr Punkte geben');
+      assert(getWaveAsteroidCount(3) === 7, 'Test fehlgeschlagen: Wave-Asteroidenzahl');
+      assert(getWaveAsteroidCount(20) === 11, 'Test fehlgeschlagen: Wave-Asteroiden-Cap');
+      assert(isPointSafe(0, 0, [{ x: 300, y: 300, radius: 50 }], 80) === true, 'Test fehlgeschlagen: sicherer Punkt');
+      assert(isPointSafe(0, 0, [{ x: 50, y: 0, radius: 30 }], 40) === false, 'Test fehlgeschlagen: unsicherer Punkt');
+
+      console.info('Alle eingebauten Tests erfolgreich.');
+    }
+
+    if (ENABLE_SELF_TESTS) runTests();
+
+    function makeBeepDataUrl({ frequency = 740, duration = 0.06, volume = 0.35, sampleRate = 22050 } = {}) {
+      const samples = Math.max(1, Math.floor(sampleRate * duration));
+      const bytesPerSample = 2;
+      const dataSize = samples * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * bytesPerSample, true);
+      view.setUint16(32, bytesPerSample, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      for (let i = 0; i < samples; i++) {
+        const t = i / sampleRate;
+        const envelope = Math.max(0, 1 - i / samples);
+        const sample = Math.sin(2 * Math.PI * frequency * t) * volume * envelope;
+        view.setInt16(44 + i * 2, sample * 32767, true);
+      }
+
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return 'data:audio/wav;base64,' + btoa(binary);
+    }
+
+    function createSafeHowl(src, volume = 0.42) {
+      try {
+        if (window.Howl) return new window.Howl({ src: [src], volume });
+      } catch (error) {
+        console.warn('Howler konnte nicht initialisiert werden:', error);
+      }
+      return { play() {} };
+    }
+
+    class PSYPipeline extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline {
+      constructor(game) {
+        super({
+          game,
+          renderTarget: true,
+          fragShader: `
+            precision mediump float;
+            uniform sampler2D uMainSampler;
+            varying vec2 outTexCoord;
+            uniform float uTime;
+
+            void main(void) {
+              vec2 uv = outTexCoord;
+              vec2 centered = uv - 0.5;
+              float radius = length(centered);
+              float wobble = sin((uv.y * 18.0) + uTime * 1.4) * 0.012;
+              float ripple = sin(radius * 26.0 - uTime * 2.3) * 0.006;
+              uv.x += wobble + ripple;
+              uv.y += cos((uv.x * 15.0) - uTime * 1.1) * 0.009;
+
+              vec4 base = texture2D(uMainSampler, uv);
+              float r = texture2D(uMainSampler, uv + vec2(0.008 * sin(uTime + uv.y * 10.0), 0.0)).r;
+              float g = texture2D(uMainSampler, uv + vec2(0.0, 0.007 * cos(uTime * 1.2 + uv.x * 8.0))).g;
+              float b = texture2D(uMainSampler, uv + vec2(-0.008 * sin(uTime * 0.7 + uv.y * 12.0), 0.0)).b;
+              vec3 shifted = vec3(r, g, b);
+
+              float pulse = 0.94 + 0.08 * sin(uTime * 1.8 + uv.x * 12.0 + uv.y * 9.0);
+              shifted *= pulse;
+              shifted += 0.035 * vec3(
+                sin(uTime + uv.x * 22.0),
+                sin(uTime * 1.4 + uv.y * 18.0),
+                sin(uTime * 1.9 + (uv.x + uv.y) * 16.0)
+              );
+
+              gl_FragColor = vec4(shifted, base.a);
+            }
+          `
+        });
+        this._time = 0;
+      }
+
+      onPreRender() {
+        this._time += 0.016;
+        this.set1f('uTime', this._time);
+      }
+    }
+
+    class GameScene extends Phaser.Scene {
+      constructor() {
+        super('GameScene');
+        this.player = null;
+        this.cursors = null;
+        this.spaceKey = null;
+        this.bullets = [];
+        this.asteroids = [];
+        this.backgroundContainer = null;
+        this.groundGlow = null;
+        this.score = 0;
+        this.lives = START_LIVES;
+        this.wave = START_WAVE;
+        this.lastShotTime = 0;
+        this.gameOver = false;
+        this.respawnUntil = 0;
+        this.scoreText = null;
+        this.waveText = null;
+        this.livesText = null;
+        this.messageText = null;
+        this.saucer = null;
+        this.saucerBullets = [];
+        this.nextSaucerAt = 0;
+        this.invulnerableUntil = 0;
+        this.shootSound = createSafeHowl(makeBeepDataUrl({ frequency: 980, duration: 0.05, volume: 0.22 }), 0.3);
+        this.thrustSound = createSafeHowl(makeBeepDataUrl({ frequency: 210, duration: 0.08, volume: 0.2 }), 0.18);
+        this.hitSound = createSafeHowl(makeBeepDataUrl({ frequency: 170, duration: 0.12, volume: 0.46 }), 0.38);
+        this.playerHitSound = createSafeHowl(makeBeepDataUrl({ frequency: 110, duration: 0.24, volume: 0.5 }), 0.42);
+        this.waveSound = createSafeHowl(makeBeepDataUrl({ frequency: 720, duration: 0.12, volume: 0.28 }), 0.3);
+        this.saucerSound = createSafeHowl(makeBeepDataUrl({ frequency: 510, duration: 0.1, volume: 0.24 }), 0.24);
+        this.enemyShootSound = createSafeHowl(makeBeepDataUrl({ frequency: 320, duration: 0.08, volume: 0.28 }), 0.22);
+      }
+
+      preload() {
+        this.createTextures();
+      }
+
+      createTextures() {
+        const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+        g.clear();
+        g.lineStyle(3, 0x8cf8ff, 1);
+        g.beginPath();
+        g.moveTo(34, 8);
+        g.lineTo(10, 54);
+        g.lineTo(34, 44);
+        g.lineTo(58, 54);
+        g.closePath();
+        g.strokePath();
+        g.lineStyle(2, 0xffcd00, 1);
+        g.beginPath();
+        g.moveTo(24, 44);
+        g.lineTo(34, 26);
+        g.lineTo(44, 44);
+        g.strokePath();
+        g.generateTexture('ship', 68, 64);
+
+        g.clear();
+        g.fillStyle(0xfff6bf, 1);
+        g.fillCircle(4, 4, 4);
+        g.generateTexture('bullet', 8, 8);
+
+        g.clear();
+        g.fillStyle(0xff9f6e, 1);
+        g.fillTriangle(8, 0, 0, 18, 16, 18);
+        g.generateTexture('thrust', 16, 18);
+
+        g.clear();
+        g.lineStyle(3, 0xff5ec4, 1);
+        g.strokeRoundedRect(6, 10, 52, 18, 8);
+        g.lineStyle(2, 0xfff2a8, 1);
+        g.strokeEllipse(32, 20, 20, 8);
+        g.strokeLineShape(new Phaser.Geom.Line(10, 20, 0, 20));
+        g.strokeLineShape(new Phaser.Geom.Line(64, 20, 54, 20));
+        g.generateTexture('saucer', 64, 40);
+
+        g.clear();
+        g.fillStyle(0xfff2a8, 1);
+        g.fillCircle(20, 20, 6);
+        for (let i = 0; i < 10; i++) {
+          const a = (Math.PI * 2 * i) / 10;
+          const px = 20 + Math.cos(a) * 12;
+          const py = 20 + Math.sin(a) * 12;
+          g.fillEllipse(px, py, 7, 14);
+        }
+        g.generateTexture('flower', 40, 40);
+
+        g.destroy();
+      }
+
+      create() {
+        this.drawBackground();
+        this.createHud();
+        this.createPlayer();
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.startWave(START_WAVE);
+      }
+
+      drawBackground() {
+        const bg = this.add.container(0, 0);
+        this.backgroundContainer = bg;
+
+        const sky = this.add.graphics();
+        for (let i = 0; i < HEIGHT; i += 4) {
+          const hue = (250 + i * 0.22) % 360;
+          const rgb = Phaser.Display.Color.HSVToRGB(hue / 360, 0.55, 0.18 + (i / HEIGHT) * 0.2);
+          sky.fillStyle(rgb.color, 1);
+          sky.fillRect(0, i, WIDTH, 4);
+        }
+        bg.add(sky);
+
+        for (let i = 0; i < 18; i++) {
+          const flower = this.add.image(
+            Phaser.Math.Between(20, WIDTH - 20),
+            Phaser.Math.Between(20, HEIGHT - 80),
+            'flower'
+          ).setDepth(1);
+          flower.setTint(Phaser.Display.Color.RandomRGB().color);
+          flower.setAlpha(0.18);
+          flower.setScale(Phaser.Math.FloatBetween(0.8, 1.8));
+          flower.setAngle(Phaser.Math.Between(0, 360));
+          flower.setBlendMode(Phaser.BlendModes.ADD);
+          bg.add(flower);
+        }
+
+        for (let i = 0; i < 22; i++) {
+          const blob = this.add.graphics().setDepth(1);
+          const baseX = Phaser.Math.Between(0, WIDTH);
+          const baseY = Phaser.Math.Between(0, HEIGHT - 40);
+          const fill = Phaser.Display.Color.RandomRGB().color;
+          blob.fillStyle(fill, 0.14);
+          const points = [];
+          const radius = Phaser.Math.Between(24, 58);
+          for (let s = 0; s < 12; s++) {
+            const a = (Math.PI * 2 * s) / 12;
+            const r = radius + Math.sin(i + s * 1.4) * 10;
+            points.push(new Phaser.Math.Vector2(baseX + Math.cos(a) * r, baseY + Math.sin(a) * r));
+          }
+          blob.fillPoints(points, true);
+          blob.setBlendMode(Phaser.BlendModes.ADD);
+          blob.__drift = Phaser.Math.FloatBetween(0.1, 0.35);
+          blob.__phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+          bg.add(blob);
+        }
+
+        for (let i = 0; i < 120; i++) {
+          const star = this.add.circle(
+            Phaser.Math.Between(0, WIDTH),
+            Phaser.Math.Between(0, HEIGHT),
+            Phaser.Math.Between(1, 2),
+            0xffffff,
+            Phaser.Math.FloatBetween(0.3, 0.9)
+          ).setDepth(2);
+          this.tweens.add({
+            targets: star,
+            alpha: Phaser.Math.FloatBetween(0.2, 1),
+            duration: Phaser.Math.Between(1200, 3200),
+            yoyo: true,
+            repeat: -1
+          });
+          bg.add(star);
+        }
+
+        const ground = this.add.graphics().setDepth(3);
+        ground.fillStyle(0x302016, 1);
+        ground.fillRect(0, HEIGHT - 48, WIDTH, 48);
+        ground.fillStyle(0x7aff86, 0.8);
+        ground.fillRect(0, HEIGHT - 48, WIDTH, 8);
+        bg.add(ground);
+
+        this.groundGlow = this.add.rectangle(WIDTH / 2, HEIGHT - 44, WIDTH, 8, 0xb7ff57, 0.12).setDepth(4);
+        bg.add(this.groundGlow);
+      }
+
+      createHud() {
+        this.scoreText = this.add.text(16, 12, 'Score: 0', {
+          fontSize: '26px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 5
+        }).setDepth(25);
+
+        this.waveText = this.add.text(16, 44, 'Wave: 1', {
+          fontSize: '18px',
+          color: '#9fe5ff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setDepth(25);
+
+        this.livesText = this.add.text(WIDTH - 16, 14, '', {
+          fontSize: '18px',
+          color: '#fff0a8',
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'right'
+        }).setOrigin(1, 0).setDepth(25);
+
+        this.messageText = this.add.text(WIDTH / 2, 74, '', {
+          fontSize: '24px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 5,
+          align: 'center'
+        }).setOrigin(0.5).setDepth(25);
+
+        this.refreshHud();
+      }
+
+      createPlayer() {
+        this.player = this.add.container(WIDTH / 2, HEIGHT / 2);
+        this.player.ship = this.add.image(0, 0, 'ship');
+        this.player.ship.setDepth(15);
+        this.player.thrust = this.add.image(0, 30, 'thrust');
+        this.player.thrust.setDepth(14);
+        this.player.thrust.setVisible(false);
+        this.player.thrust.setAngle(180);
+        this.player.add([this.player.thrust, this.player.ship]);
+        this.player.velocity = new Phaser.Math.Vector2(0, 0);
+        this.player.radius = 20;
+        this.player.active = true;
+        this.player.visible = true;
+      }
+
+      refreshHud() {
+        this.scoreText.setText(`Score: ${this.score}`);
+        this.waveText.setText(`Wave: ${this.wave}`);
+        this.livesText.setText(`Lives: ${this.lives}`);
+      }
+
+      startWave(wave) {
+        this.wave = wave;
+        this.messageText.setText(`WAVE ${wave}`);
+        this.waveSound.play();
+        this.clearAsteroids();
+        this.spawnAsteroids(getWaveAsteroidCount(wave));
+        this.nextSaucerAt = this.time.now + getSaucerSpawnDelay() * 1000;
+        this.time.delayedCall(1000, () => {
+          if (!this.gameOver) this.messageText.setText('');
+        });
+        this.refreshHud();
+      }
+
+      clearAsteroids() {
+        this.asteroids.forEach((asteroid) => asteroid.graphics.destroy());
+        this.asteroids = [];
+        this.bullets.forEach((bullet) => bullet.sprite.destroy());
+        this.bullets = [];
+        this.saucerBullets.forEach((bullet) => bullet.sprite.destroy());
+        this.saucerBullets = [];
+        if (this.saucer) {
+          this.saucer.sprite.destroy();
+          this.saucer = null;
+        }
+      }
+
+      spawnAsteroids(count) {
+        for (let i = 0; i < count; i++) {
+          let x = 0;
+          let y = 0;
+          do {
+            x = Phaser.Math.Between(40, WIDTH - 40);
+            y = Phaser.Math.Between(40, HEIGHT - 120);
+          } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 160);
+          this.createAsteroid(x, y, 3);
+        }
+      }
+
+      createAsteroid(x, y, size, velocity = null) {
+        const graphics = this.add.graphics().setDepth(16 - size);
+        const asteroid = {
+          x,
+          y,
+          size,
+          radius: size === 3 ? 44 : size === 2 ? 28 : 16,
+          angle: Phaser.Math.FloatBetween(0, Math.PI * 2),
+          rotationSpeed: Phaser.Math.FloatBetween(-1, 1) * 0.6,
+          velocity: velocity || new Phaser.Math.Vector2(1, 0).setAngle(Phaser.Math.FloatBetween(0, Math.PI * 2)).scale(getAsteroidSpeed(size) + this.wave * 6),
+          graphics
+        };
+        this.drawAsteroid(asteroid);
+        this.asteroids.push(asteroid);
+        return asteroid;
+      }
+
+      drawAsteroid(asteroid) {
+        const graphics = asteroid.graphics;
+        graphics.clear();
+        graphics.lineStyle(3, 0xffd34f, 0.95);
+        graphics.beginPath();
+        const points = 9;
+        for (let i = 0; i <= points; i++) {
+          const a = asteroid.angle + (Math.PI * 2 * i) / points;
+          const radius = asteroid.radius + Math.sin(i * 1.7 + asteroid.radius) * (asteroid.radius * 0.16);
+          const px = asteroid.x + Math.cos(a) * radius;
+          const py = asteroid.y + Math.sin(a) * radius;
+          if (i === 0) graphics.moveTo(px, py);
+          else graphics.lineTo(px, py);
+        }
+        graphics.closePath();
+        graphics.strokePath();
+        graphics.lineStyle(1.5, 0x8cf8ff, 0.7);
+        graphics.strokeCircle(asteroid.x, asteroid.y, asteroid.radius * 0.48);
+      }
+
+      update(time, delta) {
+        this.animateBackdrop(time);
+        if (this.gameOver) return;
+
+        const dt = delta / 1000;
+        this.updatePlayer(time, dt);
+        this.updateBullets(dt);
+        this.updateSaucer(dt, time);
+        this.updateAsteroids(dt);
+        this.handleCollisions();
+
+        if (!this.asteroids.length) {
+          this.startWave(this.wave + 1);
+        }
+      }
+
+      animateBackdrop(time) {
+        if (this.groundGlow) {
+          this.groundGlow.alpha = 0.08 + Math.sin(time * 0.003) * 0.04;
+        }
+        if (!this.backgroundContainer) return;
+        this.backgroundContainer.iterate((child) => {
+          if (!child || !child.active) return;
+          if (child.texture && child.texture.key === 'flower') {
+            child.angle += 0.08;
+            child.scaleX = child.scaleY = child.scaleX + Math.sin(time * 0.001 + child.x * 0.01) * 0.0008;
+          } else if (child.type === 'Graphics' && child.__drift !== undefined) {
+            child.x = Math.sin(time * 0.0004 + child.__phase) * 8 * child.__drift;
+            child.y = Math.cos(time * 0.00045 + child.__phase) * 5 * child.__drift;
+          }
+        });
+      }
+
+      updatePlayer(time, dt) {
+        if (!this.player.active) {
+          if (time >= this.respawnUntil && !this.gameOver) this.tryRespawnPlayer(time);
+          return;
+        }
+
+        if (this.cursors.left.isDown) this.player.rotation -= PLAYER_TURN_SPEED * dt;
+        if (this.cursors.right.isDown) this.player.rotation += PLAYER_TURN_SPEED * dt;
+
+        let thrusting = false;
+        if (this.cursors.up.isDown) {
+          thrusting = true;
+          const force = new Phaser.Math.Vector2(0, -1).setAngle(this.player.rotation - Math.PI / 2).scale(PLAYER_THRUST * dt);
+          this.player.velocity.add(force);
+          if (Math.random() > 0.9) this.thrustSound.play();
+        }
+
+        this.player.thrust.setVisible(thrusting);
+        this.player.alpha = time < this.invulnerableUntil ? (Math.floor(time / 120) % 2 ? 0.35 : 1) : 1;
+        this.player.velocity.scale(Math.pow(PLAYER_DRAG, dt * 60));
+        if (this.player.velocity.length() > PLAYER_MAX_SPEED) {
+          this.player.velocity.setLength(PLAYER_MAX_SPEED);
+        }
+
+        this.player.x += this.player.velocity.x * dt;
+        this.player.y += this.player.velocity.y * dt;
+        wrapPosition(this.player, WIDTH, HEIGHT);
+
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && time - this.lastShotTime > FIRE_DELAY) {
+          this.fireBullet();
+          this.lastShotTime = time;
+        }
+      }
+
+      fireBullet() {
+        if (!this.player.active) return;
+        if (this.bullets.length >= MAX_PLAYER_BULLETS) return;
+        const direction = new Phaser.Math.Vector2(0, -1).setAngle(this.player.rotation - Math.PI / 2);
+        const bullet = {
+          x: this.player.x + direction.x * 24,
+          y: this.player.y + direction.y * 24,
+          velocity: direction.scale(BULLET_SPEED).add(this.player.velocity.clone().scale(0.35)),
+          expiresAt: this.time.now + BULLET_LIFETIME,
+          sprite: this.add.image(0, 0, 'bullet').setDepth(18)
+        };
+        bullet.sprite.setTint(0xfff6bf);
+        bullet.sprite.setPosition(bullet.x, bullet.y);
+        this.bullets.push(bullet);
+        this.shootSound.play();
+      }
+
+      updateBullets(dt) {
+        this.bullets = this.bullets.filter((bullet) => {
+          if (this.time.now >= bullet.expiresAt) {
+            bullet.sprite.destroy();
+            return false;
+          }
+          bullet.x += bullet.velocity.x * dt;
+          bullet.y += bullet.velocity.y * dt;
+          wrapPosition(bullet, WIDTH, HEIGHT);
+          bullet.sprite.setPosition(bullet.x, bullet.y);
+          return true;
+        });
+
+        this.saucerBullets = this.saucerBullets.filter((bullet) => {
+          if (this.time.now >= bullet.expiresAt) {
+            bullet.sprite.destroy();
+            return false;
+          }
+          bullet.x += bullet.velocity.x * dt;
+          bullet.y += bullet.velocity.y * dt;
+          wrapPosition(bullet, WIDTH, HEIGHT);
+          bullet.sprite.setPosition(bullet.x, bullet.y);
+          return true;
+        });
+      }
+
+      updateSaucer(dt, time) {
+        if (!this.saucer && time >= this.nextSaucerAt && this.wave > 1) {
+          this.spawnSaucer();
+        }
+        if (!this.saucer) return;
+
+        this.saucer.x += this.saucer.velocity.x * dt;
+        this.saucer.y += this.saucer.velocity.y * dt;
+        wrapPosition(this.saucer, WIDTH, HEIGHT, 36);
+        this.saucer.sprite.setPosition(this.saucer.x, this.saucer.y);
+
+        this.saucer.shotTimer -= dt;
+        if (this.saucer.shotTimer <= 0) {
+          this.saucerFire();
+          this.saucer.shotTimer = Phaser.Math.FloatBetween(1.1, 1.9);
+        }
+
+        if (this.saucer.ageUntil <= time) {
+          this.saucer.sprite.destroy();
+          this.saucer = null;
+          this.nextSaucerAt = this.time.now + getSaucerSpawnDelay() * 1000;
+        }
+      }
+
+      spawnSaucer() {
+        const fromLeft = Math.random() > 0.5;
+        const y = Phaser.Math.Between(90, HEIGHT - 170);
+        const sprite = this.add.image(fromLeft ? -30 : WIDTH + 30, y, 'saucer').setDepth(18);
+        sprite.setTint(0xff5ec4);
+        this.saucer = {
+          x: sprite.x,
+          y,
+          radius: 24,
+          sprite,
+          velocity: new Phaser.Math.Vector2(fromLeft ? 95 : -95, Phaser.Math.FloatBetween(-22, 22)),
+          shotTimer: Phaser.Math.FloatBetween(0.8, 1.6),
+          ageUntil: this.time.now + Phaser.Math.Between(9000, 13000)
+        };
+        this.saucerSound.play();
+      }
+
+      saucerFire() {
+        if (!this.saucer) return;
+        const aimAtPlayer = this.wave >= 4;
+        const target = aimAtPlayer && this.player.active
+          ? new Phaser.Math.Vector2(this.player.x, this.player.y)
+          : new Phaser.Math.Vector2(
+              this.saucer.x + Phaser.Math.Between(-220, 220),
+              this.saucer.y + Phaser.Math.Between(-180, 180)
+            );
+        const direction = target.subtract(new Phaser.Math.Vector2(this.saucer.x, this.saucer.y)).normalize().scale(SAUCER_BULLET_SPEED + this.wave * 8);
+        const bullet = {
+          x: this.saucer.x,
+          y: this.saucer.y,
+          velocity: direction,
+          expiresAt: this.time.now + 1800,
+          sprite: this.add.image(this.saucer.x, this.saucer.y, 'bullet').setDepth(18)
+        };
+        bullet.sprite.setTint(0xff7a7a);
+        this.saucerBullets.push(bullet);
+        this.enemyShootSound.play();
+      }
+
+      updateAsteroids(dt) {
+        for (const asteroid of this.asteroids) {
+          asteroid.x += asteroid.velocity.x * dt;
+          asteroid.y += asteroid.velocity.y * dt;
+          asteroid.angle += asteroid.rotationSpeed * dt;
+          wrapPosition(asteroid, WIDTH, HEIGHT, asteroid.radius + 12);
+          this.drawAsteroid(asteroid);
+        }
+      }
+
+      handleCollisions() {
+        for (let bulletIndex = this.bullets.length - 1; bulletIndex >= 0; bulletIndex--) {
+          const bullet = this.bullets[bulletIndex];
+          for (let asteroidIndex = this.asteroids.length - 1; asteroidIndex >= 0; asteroidIndex--) {
+            const asteroid = this.asteroids[asteroidIndex];
+            if (Phaser.Math.Distance.Between(bullet.x, bullet.y, asteroid.x, asteroid.y) <= asteroid.radius) {
+              this.destroyBulletAt(bulletIndex);
+              this.breakAsteroid(asteroidIndex);
+              break;
+            }
+          }
+
+          if (this.saucer && Phaser.Math.Distance.Between(bullet.x, bullet.y, this.saucer.x, this.saucer.y) <= this.saucer.radius) {
+            this.destroyBulletAt(bulletIndex);
+            this.hitSaucer();
+            continue;
+          }
+        }
+
+        if (!this.player.active) return;
+        if (this.time.now < this.invulnerableUntil) return;
+        for (const asteroid of this.asteroids) {
+          if (Phaser.Math.Distance.Between(this.player.x, this.player.y, asteroid.x, asteroid.y) <= asteroid.radius + this.player.radius) {
+            this.handlePlayerHit();
+            return;
+          }
+        }
+
+        for (let bulletIndex = this.saucerBullets.length - 1; bulletIndex >= 0; bulletIndex--) {
+          const bullet = this.saucerBullets[bulletIndex];
+          if (Phaser.Math.Distance.Between(this.player.x, this.player.y, bullet.x, bullet.y) <= this.player.radius + 4) {
+            this.destroySaucerBulletAt(bulletIndex);
+            this.handlePlayerHit();
+            return;
+          }
+        }
+      }
+
+      destroyBulletAt(index) {
+        const [bullet] = this.bullets.splice(index, 1);
+        if (bullet) bullet.sprite.destroy();
+      }
+
+      breakAsteroid(index) {
+        const [asteroid] = this.asteroids.splice(index, 1);
+        if (!asteroid) return;
+        asteroid.graphics.destroy();
+        this.hitSound.play();
+        this.addScore(getAsteroidScore(asteroid.size));
+        this.createBurst(asteroid.x, asteroid.y, asteroid.size === 1 ? 0xff4dcf : 0xffd34f);
+
+        if (asteroid.size > 1) {
+          for (const spin of [-1, 1]) {
+            const newVelocity = asteroid.velocity.clone().rotate(spin * 0.55).scale(1.16);
+            this.createAsteroid(asteroid.x + spin * 6, asteroid.y - spin * 6, asteroid.size - 1, newVelocity);
+          }
+        }
+      }
+
+      hitSaucer() {
+        if (!this.saucer) return;
+        this.hitSound.play();
+        this.addScore(200);
+        this.createBurst(this.saucer.x, this.saucer.y, 0xff5ec4);
+        this.saucer.sprite.destroy();
+        this.saucer = null;
+        this.nextSaucerAt = this.time.now + getSaucerSpawnDelay() * 1000;
+      }
+
+      handlePlayerHit() {
+        if (!this.player.active) return;
+        this.player.active = false;
+        this.player.setVisible(false);
+        this.playerHitSound.play();
+        this.createBurst(this.player.x, this.player.y, 0xff7a7a);
+        this.lives -= 1;
+        this.refreshHud();
+
+        if (this.lives <= 0) {
+          this.endGame('MISSION FAILED');
+          return;
+        }
+
+        this.respawnUntil = this.time.now + RESPAWN_DELAY;
+      }
+
+      tryRespawnPlayer(time) {
+        if (!isPointSafe(WIDTH / 2, HEIGHT / 2, this.asteroids, SAFE_RESPAWN_RADIUS)) {
+          this.respawnUntil = time + 250;
+          return;
+        }
+        this.respawnPlayer(time);
+      }
+
+      respawnPlayer(time) {
+        this.player.x = WIDTH / 2;
+        this.player.y = HEIGHT / 2;
+        this.player.rotation = 0;
+        this.player.velocity.set(0, 0);
+        this.player.setVisible(true);
+        this.player.active = true;
+        this.invulnerableUntil = time + INVULNERABILITY_DURATION;
+      }
+
+      destroySaucerBulletAt(index) {
+        const [bullet] = this.saucerBullets.splice(index, 1);
+        if (bullet) bullet.sprite.destroy();
+      }
+
+      createBurst(x, y, color) {
+        const burst = this.add.circle(x, y, 10, color, 0.38).setDepth(24);
+        burst.setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({
+          targets: burst,
+          radius: 36,
+          alpha: 0,
+          duration: 240,
+          onComplete: () => burst.destroy()
+        });
+      }
+
+      addScore(points) {
+        this.score += points;
+        this.refreshHud();
+      }
+
+      endGame(label) {
+        if (this.gameOver) return;
+        this.gameOver = true;
+        this.messageText.setText('GAME OVER');
+        this.add.rectangle(WIDTH / 2, HEIGHT / 2, 360, 130, 0x000000, 0.7)
+          .setStrokeStyle(3, 0xffffff, 0.35)
+          .setDepth(50);
+        this.add.text(WIDTH / 2, HEIGHT / 2 - 12, label, {
+          fontSize: '38px',
+          color: '#ff7a7a',
+          stroke: '#000000',
+          strokeThickness: 6
+        }).setOrigin(0.5).setDepth(51);
+        this.add.text(WIDTH / 2, HEIGHT / 2 + 28, 'Seite neu laden für Neustart', {
+          fontSize: '18px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setOrigin(0.5).setDepth(51);
+      }
+    }
+
+    try {
+      const game = new Phaser.Game({
+        banner: false,
+        type: Phaser.AUTO,
+        parent: 'game-root',
+        width: WIDTH,
+        height: HEIGHT,
+        backgroundColor: '#050510',
+        scene: [GameScene],
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH
+        }
+      });
+
+      game.renderer.pipelines.addPostPipeline('PSYPipeline', PSYPipeline);
+      game.events.once('ready', () => {
+        const scene = game.scene.getScene('GameScene');
+        if (scene && scene.cameras && scene.cameras.main) {
+          scene.cameras.main.setPostPipeline('PSYPipeline');
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'flex';
+      errorEl.textContent = 'Das Spiel konnte nicht gestartet werden.\n\n' + (error?.stack || error?.message || String(error));
+    }
+  </script>
+</body>
+</html>

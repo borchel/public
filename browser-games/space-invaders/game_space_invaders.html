@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Space Invaders - Psychedelic Arcade</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #050510;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #game-root {
+      width: 100vw;
+      height: 100vh;
+    }
+    .hud {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 10;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.36);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 14px;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+    }
+    .error {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: #070707;
+      color: #fff;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      white-space: pre-wrap;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-root"></div>
+  <div class="hud">Steuerung: ← → bewegen · Leertaste schießen · Ziel: Invasoren und UFOs abwehren</div>
+  <div id="error" class="error"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+  <script type="module">
+    import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.esm.js';
+
+    const WIDTH = 960;
+    const HEIGHT = 640;
+    const PLAYER_Y = HEIGHT - 66;
+    const INVADER_ROWS = 5;
+    const INVADER_COLS = 10;
+    const INVADER_SPACING_X = 66;
+    const INVADER_SPACING_Y = 50;
+    const INVADER_START_X = 166;
+    const INVADER_START_Y = 116;
+    const PLAYER_SPEED = 280;
+    const PLAYER_BULLET_SPEED = 540;
+    const ENEMY_BULLET_SPEED = 260;
+    const FIRE_DELAY = 220;
+    const FORMATION_DROP = 20;
+    const BASE_INVADER_STEP = 0.58;
+    const MIN_INVADER_STEP = 0.06;
+    const INVADER_STEP_DISTANCE = 12;
+    const BARRIER_COUNT = 4;
+    const BARRIER_HEALTH = 16;
+    const UFO_SPEED = 150;
+    const ENABLE_SELF_TESTS = false;
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function getInvaderScore(row) {
+      return [40, 30, 20, 20, 10][row] ?? 10;
+    }
+
+    function getFormationStepDelay(aliveCount) {
+      const total = INVADER_ROWS * INVADER_COLS;
+      const defeatedRatio = (total - aliveCount) / total;
+      return clamp(BASE_INVADER_STEP - defeatedRatio * 0.5, MIN_INVADER_STEP, BASE_INVADER_STEP);
+    }
+
+    function getInvaderTextureKey(row, frame) {
+      const family = row < 2 ? 'a' : row < 4 ? 'b' : 'c';
+      return `invader-${family}-${frame ? 2 : 1}`;
+    }
+
+    function getUfoScore(shotsFired) {
+      const sequence = [100, 50, 50, 100, 150, 100, 50, 300, 100, 50, 150, 100, 50, 100, 150];
+      return sequence[shotsFired % sequence.length];
+    }
+
+    function getBarrierLayout(width, y, count) {
+      const padding = 150;
+      const usableWidth = width - padding * 2;
+      const gap = usableWidth / (count - 1);
+      return Array.from({ length: count }, (_, index) => ({
+        x: padding + index * gap,
+        y
+      }));
+    }
+
+    function runTests() {
+      assert(clamp(5, 0, 3) === 3, 'Test fehlgeschlagen: clamp oben');
+      assert(clamp(-2, 0, 3) === 0, 'Test fehlgeschlagen: clamp unten');
+      assert(clamp(2, 0, 3) === 2, 'Test fehlgeschlagen: clamp innen');
+
+      assert(getInvaderScore(0) === 40, 'Test fehlgeschlagen: Score oberste Reihe');
+      assert(getInvaderScore(4) === 10, 'Test fehlgeschlagen: Score unterste Reihe');
+
+      assert(getFormationStepDelay(50) > getFormationStepDelay(10), 'Test fehlgeschlagen: Formation sollte bei weniger Gegnern schneller werden');
+      assert(getInvaderTextureKey(0, 0) === 'invader-a-1', 'Test fehlgeschlagen: Invader-Texture Row 0');
+      assert(getInvaderTextureKey(4, 1) === 'invader-c-2', 'Test fehlgeschlagen: Invader-Texture letzte Reihe');
+      assert(getUfoScore(7) === 300, 'Test fehlgeschlagen: UFO 300er-Slot');
+
+      const layout = getBarrierLayout(960, 520, 4);
+      assert(layout.length === 4, 'Test fehlgeschlagen: Barrieren-Anzahl');
+      assert(layout[0].x < layout[3].x, 'Test fehlgeschlagen: Barrieren-Reihenfolge');
+
+      console.info('Alle eingebauten Tests erfolgreich.');
+    }
+
+    if (ENABLE_SELF_TESTS) runTests();
+
+    function makeBeepDataUrl({ frequency = 740, duration = 0.06, volume = 0.35, sampleRate = 22050 } = {}) {
+      const samples = Math.max(1, Math.floor(sampleRate * duration));
+      const bytesPerSample = 2;
+      const dataSize = samples * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * bytesPerSample, true);
+      view.setUint16(32, bytesPerSample, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      for (let i = 0; i < samples; i++) {
+        const t = i / sampleRate;
+        const envelope = Math.max(0, 1 - i / samples);
+        const sample = Math.sin(2 * Math.PI * frequency * t) * volume * envelope;
+        view.setInt16(44 + i * 2, sample * 32767, true);
+      }
+
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return 'data:audio/wav;base64,' + btoa(binary);
+    }
+
+    function createSafeHowl(src, volume = 0.42) {
+      try {
+        if (window.Howl) return new window.Howl({ src: [src], volume });
+      } catch (error) {
+        console.warn('Howler konnte nicht initialisiert werden:', error);
+      }
+      return { play() {} };
+    }
+
+    class PSYPipeline extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline {
+      constructor(game) {
+        super({
+          game,
+          renderTarget: true,
+          fragShader: `
+            precision mediump float;
+            uniform sampler2D uMainSampler;
+            varying vec2 outTexCoord;
+            uniform float uTime;
+
+            void main(void) {
+              vec2 uv = outTexCoord;
+              vec2 centered = uv - 0.5;
+              float radius = length(centered);
+              float wobble = sin((uv.y * 18.0) + uTime * 1.4) * 0.012;
+              float ripple = sin(radius * 26.0 - uTime * 2.3) * 0.006;
+              uv.x += wobble + ripple;
+              uv.y += cos((uv.x * 15.0) - uTime * 1.1) * 0.009;
+
+              vec4 base = texture2D(uMainSampler, uv);
+              float r = texture2D(uMainSampler, uv + vec2(0.008 * sin(uTime + uv.y * 10.0), 0.0)).r;
+              float g = texture2D(uMainSampler, uv + vec2(0.0, 0.007 * cos(uTime * 1.2 + uv.x * 8.0))).g;
+              float b = texture2D(uMainSampler, uv + vec2(-0.008 * sin(uTime * 0.7 + uv.y * 12.0), 0.0)).b;
+              vec3 shifted = vec3(r, g, b);
+
+              float pulse = 0.94 + 0.08 * sin(uTime * 1.8 + uv.x * 12.0 + uv.y * 9.0);
+              shifted *= pulse;
+              shifted += 0.035 * vec3(
+                sin(uTime + uv.x * 22.0),
+                sin(uTime * 1.4 + uv.y * 18.0),
+                sin(uTime * 1.9 + (uv.x + uv.y) * 16.0)
+              );
+
+              gl_FragColor = vec4(shifted, base.a);
+            }
+          `
+        });
+        this._time = 0;
+      }
+
+      onPreRender() {
+        this._time += 0.016;
+        this.set1f('uTime', this._time);
+      }
+    }
+
+    class GameScene extends Phaser.Scene {
+      constructor() {
+        super('GameScene');
+        this.player = null;
+        this.cursors = null;
+        this.spaceKey = null;
+        this.playerBullets = null;
+        this.enemyBullets = null;
+        this.invaders = [];
+        this.invaderSprites = null;
+        this.barriers = [];
+        this.barrierGroup = null;
+        this.backgroundContainer = null;
+        this.groundGlow = null;
+        this.score = 0;
+        this.lives = 3;
+        this.wave = 1;
+        this.scoreText = null;
+        this.waveText = null;
+        this.livesText = null;
+        this.messageText = null;
+        this.gameOver = false;
+        this.lastShotTime = 0;
+        this.invaderDirection = 1;
+        this.invaderMoveTimer = 0;
+        this.invaderAnimFrame = 0;
+        this.ufo = null;
+        this.ufoCooldown = 0;
+        this.shotsFired = 0;
+        this.shootSound = createSafeHowl(makeBeepDataUrl({ frequency: 1120, duration: 0.045, volume: 0.22 }), 0.3);
+        this.enemyShootSound = createSafeHowl(makeBeepDataUrl({ frequency: 280, duration: 0.07, volume: 0.32 }), 0.28);
+        this.hitSound = createSafeHowl(makeBeepDataUrl({ frequency: 180, duration: 0.09, volume: 0.42 }), 0.38);
+        this.playerHitSound = createSafeHowl(makeBeepDataUrl({ frequency: 120, duration: 0.2, volume: 0.48 }), 0.42);
+        this.waveSound = createSafeHowl(makeBeepDataUrl({ frequency: 760, duration: 0.12, volume: 0.28 }), 0.3);
+        this.ufoSound = createSafeHowl(makeBeepDataUrl({ frequency: 540, duration: 0.11, volume: 0.22 }), 0.22);
+      }
+
+      preload() {
+        this.createTextures();
+      }
+
+      createTextures() {
+        const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+        g.clear();
+        g.fillStyle(0x8cf8ff, 1);
+        g.fillEllipse(28, 22, 36, 22);
+        g.fillStyle(0xffcd00, 1);
+        g.fillTriangle(28, 4, 12, 34, 44, 34);
+        g.fillStyle(0xffffff, 1);
+        g.fillRect(18, 32, 6, 10);
+        g.fillRect(32, 32, 6, 10);
+        g.generateTexture('player', 56, 44);
+
+        g.clear();
+        g.fillStyle(0xfff6bf, 1);
+        g.fillRect(0, 0, 4, 18);
+        g.generateTexture('player-bullet', 4, 18);
+
+        g.clear();
+        g.fillStyle(0xff7c61, 1);
+        g.fillEllipse(4, 10, 8, 20);
+        g.generateTexture('enemy-bullet', 8, 20);
+
+        g.clear();
+        g.fillStyle(0xff5ec4, 1);
+        g.fillEllipse(24, 18, 34, 16);
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(15, 18, 3);
+        g.fillCircle(33, 18, 3);
+        g.fillRect(8, 24, 5, 8);
+        g.fillRect(35, 24, 5, 8);
+        g.generateTexture('invader-a-1', 48, 34);
+
+        g.clear();
+        g.fillStyle(0xff5ec4, 1);
+        g.fillEllipse(24, 18, 28, 18);
+        g.fillStyle(0xffffff, 1);
+        g.fillCircle(12, 18, 3);
+        g.fillCircle(36, 18, 3);
+        g.fillRect(12, 24, 5, 8);
+        g.fillRect(31, 24, 5, 8);
+        g.generateTexture('invader-a-2', 48, 34);
+
+        g.clear();
+        g.fillStyle(0xffd34f, 1);
+        g.fillEllipse(24, 18, 36, 20);
+        g.fillStyle(0xff4dcf, 1);
+        g.fillRect(8, 12, 8, 14);
+        g.fillRect(32, 12, 8, 14);
+        g.fillStyle(0x2c1a00, 1);
+        g.fillRect(19, 6, 10, 10);
+        g.generateTexture('invader-b-1', 48, 34);
+
+        g.clear();
+        g.fillStyle(0xffd34f, 1);
+        g.fillEllipse(24, 18, 34, 18);
+        g.fillStyle(0xff4dcf, 1);
+        g.fillRect(6, 12, 10, 12);
+        g.fillRect(32, 12, 10, 12);
+        g.fillStyle(0x2c1a00, 1);
+        g.fillRect(20, 4, 8, 12);
+        g.generateTexture('invader-b-2', 48, 34);
+
+        g.clear();
+        g.fillStyle(0x9fe5ff, 1);
+        g.fillEllipse(24, 16, 40, 18);
+        g.fillStyle(0xff00dd, 1);
+        g.fillCircle(12, 18, 4);
+        g.fillCircle(36, 18, 4);
+        g.fillRect(12, 24, 6, 8);
+        g.fillRect(30, 24, 6, 8);
+        g.generateTexture('invader-c-1', 48, 34);
+
+        g.clear();
+        g.fillStyle(0x9fe5ff, 1);
+        g.fillEllipse(24, 16, 34, 18);
+        g.fillStyle(0xff00dd, 1);
+        g.fillCircle(10, 18, 4);
+        g.fillCircle(38, 18, 4);
+        g.fillRect(16, 22, 4, 10);
+        g.fillRect(28, 22, 4, 10);
+        g.generateTexture('invader-c-2', 48, 34);
+
+        g.clear();
+        g.fillStyle(0x7bff87, 1);
+        g.fillRoundedRect(4, 6, 48, 28, 8);
+        g.fillStyle(0x4dd9ff, 1);
+        g.fillEllipse(28, 20, 20, 10);
+        g.fillStyle(0xffffff, 1);
+        g.fillRect(10, 18, 6, 4);
+        g.fillRect(40, 18, 6, 4);
+        g.generateTexture('barrier', 56, 40);
+
+        g.clear();
+        g.fillStyle(0xff4dcf, 1);
+        g.fillEllipse(40, 20, 66, 18);
+        g.fillStyle(0xfff2a8, 1);
+        g.fillEllipse(40, 18, 26, 10);
+        g.fillStyle(0xffffff, 1);
+        g.fillRect(8, 20, 8, 4);
+        g.fillRect(64, 20, 8, 4);
+        g.generateTexture('ufo', 80, 40);
+
+        g.clear();
+        g.fillStyle(0xfff2a8, 1);
+        g.fillCircle(20, 20, 6);
+        for (let i = 0; i < 10; i++) {
+          const a = (Math.PI * 2 * i) / 10;
+          const px = 20 + Math.cos(a) * 12;
+          const py = 20 + Math.sin(a) * 12;
+          g.fillEllipse(px, py, 7, 14);
+        }
+        g.generateTexture('flower', 40, 40);
+
+        g.destroy();
+      }
+
+      create() {
+        this.drawBackground();
+        this.createHud();
+        this.createPlayer();
+        this.createGroups();
+        this.registerCollisions();
+        this.startWave(1);
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+      }
+
+      drawBackground() {
+        const bg = this.add.container(0, 0);
+        this.backgroundContainer = bg;
+
+        const sky = this.add.graphics();
+        for (let i = 0; i < HEIGHT; i += 4) {
+          const hue = (250 + i * 0.22) % 360;
+          const rgb = Phaser.Display.Color.HSVToRGB(hue / 360, 0.55, 0.18 + (i / HEIGHT) * 0.2);
+          sky.fillStyle(rgb.color, 1);
+          sky.fillRect(0, i, WIDTH, 4);
+        }
+        bg.add(sky);
+
+        for (let i = 0; i < 18; i++) {
+          const flower = this.add.image(
+            Phaser.Math.Between(20, WIDTH - 20),
+            Phaser.Math.Between(20, HEIGHT - 120),
+            'flower'
+          ).setDepth(1);
+          flower.setTint(Phaser.Display.Color.RandomRGB().color);
+          flower.setAlpha(0.18);
+          flower.setScale(Phaser.Math.FloatBetween(0.8, 1.8));
+          flower.setAngle(Phaser.Math.Between(0, 360));
+          flower.setBlendMode(Phaser.BlendModes.ADD);
+          bg.add(flower);
+        }
+
+        for (let i = 0; i < 22; i++) {
+          const blob = this.add.graphics().setDepth(1);
+          const baseX = Phaser.Math.Between(0, WIDTH);
+          const baseY = Phaser.Math.Between(0, HEIGHT - 70);
+          const fill = Phaser.Display.Color.RandomRGB().color;
+          blob.fillStyle(fill, 0.14);
+          const points = [];
+          const radius = Phaser.Math.Between(24, 58);
+          for (let s = 0; s < 12; s++) {
+            const a = (Math.PI * 2 * s) / 12;
+            const r = radius + Math.sin(i + s * 1.4) * 10;
+            points.push(new Phaser.Math.Vector2(baseX + Math.cos(a) * r, baseY + Math.sin(a) * r));
+          }
+          blob.fillPoints(points, true);
+          blob.setBlendMode(Phaser.BlendModes.ADD);
+          blob.__drift = Phaser.Math.FloatBetween(0.1, 0.35);
+          blob.__phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+          bg.add(blob);
+        }
+
+        for (let i = 0; i < 100; i++) {
+          const star = this.add.circle(
+            Phaser.Math.Between(0, WIDTH),
+            Phaser.Math.Between(0, HEIGHT - 80),
+            Phaser.Math.Between(1, 2),
+            0xffffff,
+            Phaser.Math.FloatBetween(0.3, 0.9)
+          ).setDepth(2);
+          this.tweens.add({
+            targets: star,
+            alpha: Phaser.Math.FloatBetween(0.2, 1),
+            duration: Phaser.Math.Between(1200, 3200),
+            yoyo: true,
+            repeat: -1
+          });
+          bg.add(star);
+        }
+
+        const ground = this.add.graphics().setDepth(3);
+        ground.fillStyle(0x302016, 1);
+        ground.fillRect(0, HEIGHT - 48, WIDTH, 48);
+        ground.fillStyle(0x7aff86, 0.8);
+        ground.fillRect(0, HEIGHT - 48, WIDTH, 8);
+        bg.add(ground);
+
+        this.groundGlow = this.add.rectangle(WIDTH / 2, HEIGHT - 44, WIDTH, 8, 0xb7ff57, 0.12).setDepth(4);
+        bg.add(this.groundGlow);
+      }
+
+      createHud() {
+        this.scoreText = this.add.text(16, 12, 'Score: 0', {
+          fontSize: '26px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 5
+        }).setDepth(25);
+
+        this.waveText = this.add.text(16, 44, 'Wave: 1', {
+          fontSize: '18px',
+          color: '#9fe5ff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setDepth(25);
+
+        this.livesText = this.add.text(WIDTH - 16, 14, '', {
+          fontSize: '18px',
+          color: '#fff0a8',
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'right'
+        }).setOrigin(1, 0).setDepth(25);
+
+        this.messageText = this.add.text(WIDTH / 2, 74, '', {
+          fontSize: '24px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 5,
+          align: 'center'
+        }).setOrigin(0.5).setDepth(25);
+
+        this.refreshHud();
+      }
+
+      createPlayer() {
+        this.player = this.physics.add.sprite(WIDTH / 2, PLAYER_Y, 'player').setDepth(16);
+        this.player.body.allowGravity = false;
+        this.player.setCollideWorldBounds(true);
+      }
+
+      createGroups() {
+        this.playerBullets = this.physics.add.group({ maxSize: 1, runChildUpdate: false });
+        this.enemyBullets = this.physics.add.group({ maxSize: 3, runChildUpdate: false });
+        this.invaderSprites = this.physics.add.group();
+        this.barrierGroup = this.physics.add.staticGroup();
+      }
+
+      registerCollisions() {
+        this.physics.add.overlap(this.playerBullets, this.invaderSprites, this.hitInvader, undefined, this);
+        this.physics.add.overlap(this.playerBullets, this.barrierGroup, this.hitBarrier, undefined, this);
+        this.physics.add.overlap(this.enemyBullets, this.barrierGroup, this.hitBarrier, undefined, this);
+        this.physics.add.overlap(this.player, this.enemyBullets, this.hitPlayer, undefined, this);
+      }
+
+      refreshHud() {
+        this.scoreText.setText(`Score: ${this.score}`);
+        this.waveText.setText(`Wave: ${this.wave}`);
+        this.livesText.setText(`Lives: ${this.lives}`);
+      }
+
+      startWave(wave) {
+        this.wave = wave;
+        this.invaderDirection = 1;
+        this.invaderMoveTimer = 0;
+        this.invaderAnimFrame = 0;
+        this.ufoCooldown = Phaser.Math.FloatBetween(8, 14);
+
+        this.clearWaveObjects();
+        this.spawnInvaders();
+        this.spawnBarriers();
+        this.messageText.setText(`WAVE ${wave}`);
+        this.waveSound.play();
+        this.time.delayedCall(1000, () => {
+          if (!this.gameOver) this.messageText.setText('');
+        });
+        this.refreshHud();
+      }
+
+      clearWaveObjects() {
+        this.playerBullets.clear(true, true);
+        this.enemyBullets.clear(true, true);
+        this.invaderSprites.clear(true, true);
+        this.barrierGroup.clear(true, true);
+        this.invaders = [];
+        this.barriers = [];
+        if (this.ufo) {
+          this.ufo.destroy();
+          this.ufo = null;
+        }
+      }
+
+      spawnInvaders() {
+        this.invaders = [];
+        for (let row = 0; row < INVADER_ROWS; row++) {
+          for (let col = 0; col < INVADER_COLS; col++) {
+            const x = INVADER_START_X + col * INVADER_SPACING_X;
+            const y = INVADER_START_Y + row * INVADER_SPACING_Y;
+            const sprite = this.physics.add.sprite(x, y, getInvaderTextureKey(row, this.invaderAnimFrame)).setDepth(14);
+            sprite.body.allowGravity = false;
+            sprite.setTint(Phaser.Display.Color.HSVToRGB((row * 0.12 + col * 0.02) % 1, 0.65, 1).color);
+            sprite.setData('row', row);
+            sprite.setData('col', col);
+            this.invaderSprites.add(sprite);
+            this.invaders.push(sprite);
+          }
+        }
+      }
+
+      spawnBarriers() {
+        const layout = getBarrierLayout(WIDTH, HEIGHT - 128, BARRIER_COUNT);
+        this.barriers = layout.map((pos, index) => {
+          const barrier = this.barrierGroup.create(pos.x, pos.y, 'barrier');
+          barrier.setData('health', BARRIER_HEALTH);
+          barrier.setData('index', index);
+          barrier.setTint(Phaser.Display.Color.HSVToRGB((0.28 + index * 0.06) % 1, 0.55, 1).color);
+          return barrier;
+        });
+      }
+
+      update(time, delta) {
+        this.animateBackdrop(time);
+        if (this.gameOver) return;
+
+        this.updatePlayer(time);
+        this.updateBullets();
+        this.updateInvaders(delta / 1000);
+        this.updateUfo(delta / 1000);
+        this.checkUfoHit();
+        this.maybeEnemyFire();
+
+        if (!this.invaderSprites.countActive(true)) {
+          this.startWave(this.wave + 1);
+        }
+      }
+
+      animateBackdrop(time) {
+        if (this.groundGlow) {
+          this.groundGlow.alpha = 0.08 + Math.sin(time * 0.003) * 0.04;
+        }
+        if (!this.backgroundContainer) return;
+        this.backgroundContainer.iterate((child) => {
+          if (!child || !child.active) return;
+          if (child.texture && child.texture.key === 'flower') {
+            child.angle += 0.08;
+            child.scaleX = child.scaleY = child.scaleX + Math.sin(time * 0.001 + child.x * 0.01) * 0.0008;
+          } else if (child.type === 'Graphics' && child.__drift !== undefined) {
+            child.x = Math.sin(time * 0.0004 + child.__phase) * 8 * child.__drift;
+            child.y = Math.cos(time * 0.00045 + child.__phase) * 5 * child.__drift;
+          }
+        });
+      }
+
+      updatePlayer(time) {
+        let velocityX = 0;
+        if (this.cursors.left.isDown) velocityX = -PLAYER_SPEED;
+        if (this.cursors.right.isDown) velocityX = PLAYER_SPEED;
+        this.player.setVelocityX(velocityX);
+        this.player.x = Phaser.Math.Clamp(this.player.x, 32, WIDTH - 32);
+
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && time - this.lastShotTime > FIRE_DELAY) {
+          const bullet = this.playerBullets.get(this.player.x, this.player.y - 26, 'player-bullet');
+          if (bullet) {
+            bullet.setActive(true).setVisible(true);
+            bullet.body.enable = true;
+            bullet.body.allowGravity = false;
+            bullet.setPosition(this.player.x, this.player.y - 26);
+            bullet.setVelocity(0, -PLAYER_BULLET_SPEED);
+            bullet.setDepth(18);
+            bullet.setTint(0xfff6bf);
+            this.lastShotTime = time;
+            this.shotsFired += 1;
+            this.shootSound.play();
+          }
+        }
+      }
+
+      updateBullets() {
+        this.playerBullets.children.each((bullet) => {
+          if (bullet.active && bullet.y < -20) this.recycleBullet(bullet);
+        });
+        this.enemyBullets.children.each((bullet) => {
+          if (bullet.active && bullet.y > HEIGHT + 20) this.recycleBullet(bullet);
+        });
+      }
+
+      updateInvaders(dt) {
+        this.invaderMoveTimer += dt;
+        const aliveInvaders = this.invaders.filter((invader) => invader.active);
+        if (!aliveInvaders.length) return;
+
+        const stepDelay = getFormationStepDelay(aliveInvaders.length);
+        if (this.invaderMoveTimer < stepDelay) return;
+        this.invaderMoveTimer = 0;
+        this.invaderAnimFrame = this.invaderAnimFrame ? 0 : 1;
+
+        let hitEdge = false;
+        for (const invader of aliveInvaders) {
+          const nextX = invader.x + this.invaderDirection * INVADER_STEP_DISTANCE;
+          if (nextX < 48 || nextX > WIDTH - 48) {
+            hitEdge = true;
+            break;
+          }
+        }
+
+        for (const invader of aliveInvaders) {
+          if (hitEdge) {
+            invader.y += FORMATION_DROP;
+          } else {
+            invader.x += this.invaderDirection * INVADER_STEP_DISTANCE;
+          }
+          invader.setTexture(getInvaderTextureKey(invader.getData('row'), this.invaderAnimFrame));
+          if (invader.y >= PLAYER_Y - 38) {
+            this.endGame('INVASION ERFOLGREICH');
+            return;
+          }
+        }
+
+        if (hitEdge) this.invaderDirection *= -1;
+      }
+
+      updateUfo(dt) {
+        this.ufoCooldown -= dt;
+        if (!this.ufo && this.ufoCooldown <= 0) {
+          const fromLeft = Math.random() > 0.5;
+          this.ufo = this.physics.add.sprite(fromLeft ? -60 : WIDTH + 60, 88, 'ufo').setDepth(15);
+          this.ufo.body.allowGravity = false;
+          this.ufo.setVelocityX(fromLeft ? UFO_SPEED : -UFO_SPEED);
+          this.ufo.setTint(0xff4dcf);
+          this.ufoSound.play();
+          this.ufoCooldown = Phaser.Math.FloatBetween(12, 20);
+        }
+
+        if (this.ufo && (this.ufo.x < -80 || this.ufo.x > WIDTH + 80)) {
+          this.ufo.destroy();
+          this.ufo = null;
+        }
+      }
+
+      maybeEnemyFire() {
+        if (this.enemyBullets.countActive(true) >= 3) return;
+        if (Math.random() > 0.02 + this.wave * 0.0015) return;
+        const columns = new Map();
+        for (const invader of this.invaders) {
+          if (!invader.active) continue;
+          columns.set(invader.getData('col'), invader);
+        }
+        const shooters = [...columns.values()];
+        if (!shooters.length) return;
+        const shooter = Phaser.Utils.Array.GetRandom(shooters);
+        const bullet = this.enemyBullets.get(shooter.x, shooter.y + 20, 'enemy-bullet');
+        if (!bullet) return;
+
+        bullet.setActive(true).setVisible(true);
+        bullet.body.enable = true;
+        bullet.body.allowGravity = false;
+        bullet.setPosition(shooter.x, shooter.y + 20);
+        bullet.setVelocity(0, ENEMY_BULLET_SPEED + this.wave * 12);
+        bullet.setDepth(17);
+        bullet.setTint(0xff7c61);
+        this.enemyShootSound.play();
+      }
+
+      checkUfoHit() {
+        if (!this.ufo) return;
+        this.playerBullets.children.each((bullet) => {
+          if (!bullet.active || !this.ufo || !this.ufo.active) return;
+          if (Phaser.Geom.Intersects.RectangleToRectangle(bullet.getBounds(), this.ufo.getBounds())) {
+            this.hitUfo(bullet, this.ufo);
+          }
+        });
+      }
+
+      hitInvader(bullet, invader) {
+        if (!bullet.active || !invader.active) return;
+        this.recycleBullet(bullet);
+        this.hitSound.play();
+        this.addScore(getInvaderScore(invader.getData('row')));
+        this.createBurst(invader.x, invader.y, 0xffd34f);
+        invader.destroy();
+      }
+
+      hitBarrier(bullet, barrier) {
+        if (!bullet.active || !barrier.active) return;
+        this.recycleBullet(bullet);
+        const health = (barrier.getData('health') ?? 1) - 1;
+        barrier.setData('health', health);
+        barrier.setAlpha(clamp(health / BARRIER_HEALTH, 0.18, 1));
+        barrier.setTint(Phaser.Display.Color.HSVToRGB((0.02 + health * 0.03) % 1, 0.6, 1).color);
+        if (health <= 0) barrier.destroy();
+      }
+
+      hitPlayer(player, bullet) {
+        if (!player.active || !bullet.active) return;
+        this.recycleBullet(bullet);
+        this.playerHitSound.play();
+        this.createBurst(player.x, player.y, 0xff7a7a);
+        this.lives -= 1;
+        this.refreshHud();
+        this.cameras.main.shake(140, 0.004);
+        if (this.lives <= 0) {
+          this.endGame('GAME OVER');
+          return;
+        }
+        this.player.setPosition(WIDTH / 2, PLAYER_Y);
+      }
+
+      hitUfo(bullet, ufo) {
+        if (!bullet.active || !ufo.active) return;
+        this.recycleBullet(bullet);
+        this.hitSound.play();
+        this.addScore(getUfoScore(this.shotsFired));
+        this.createBurst(ufo.x, ufo.y, 0xff4dcf);
+        ufo.destroy();
+        this.ufo = null;
+      }
+
+      recycleBullet(bullet) {
+        bullet.setActive(false);
+        bullet.setVisible(false);
+        bullet.body.stop();
+        bullet.body.enable = false;
+      }
+
+      createBurst(x, y, color) {
+        const burst = this.add.circle(x, y, 10, color, 0.38).setDepth(22);
+        burst.setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({
+          targets: burst,
+          radius: 34,
+          alpha: 0,
+          duration: 220,
+          onComplete: () => burst.destroy()
+        });
+      }
+
+      addScore(points) {
+        this.score += points;
+        this.refreshHud();
+      }
+
+      endGame(label) {
+        if (this.gameOver) return;
+        this.gameOver = true;
+        this.player.setVelocity(0, 0);
+        this.messageText.setText('GAME OVER');
+        this.add.rectangle(WIDTH / 2, HEIGHT / 2, 360, 130, 0x000000, 0.7)
+          .setStrokeStyle(3, 0xffffff, 0.35)
+          .setDepth(50);
+        this.add.text(WIDTH / 2, HEIGHT / 2 - 12, label, {
+          fontSize: '38px',
+          color: '#ff7a7a',
+          stroke: '#000000',
+          strokeThickness: 6
+        }).setOrigin(0.5).setDepth(51);
+        this.add.text(WIDTH / 2, HEIGHT / 2 + 28, 'Seite neu laden für Neustart', {
+          fontSize: '18px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setOrigin(0.5).setDepth(51);
+      }
+    }
+
+    try {
+      const game = new Phaser.Game({
+        banner: false,
+        type: Phaser.AUTO,
+        parent: 'game-root',
+        width: WIDTH,
+        height: HEIGHT,
+        backgroundColor: '#050510',
+        physics: {
+          default: 'arcade',
+          arcade: { debug: false }
+        },
+        scene: [GameScene],
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH
+        }
+      });
+
+      game.renderer.pipelines.addPostPipeline('PSYPipeline', PSYPipeline);
+      game.events.once('ready', () => {
+        const scene = game.scene.getScene('GameScene');
+        if (scene && scene.cameras && scene.cameras.main) {
+          scene.cameras.main.setPostPipeline('PSYPipeline');
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'flex';
+      errorEl.textContent = 'Das Spiel konnte nicht gestartet werden.\n\n' + (error?.stack || error?.message || String(error));
+    }
+  </script>
+</body>
+</html>

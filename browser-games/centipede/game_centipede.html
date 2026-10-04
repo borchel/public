@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Centipede Psychedelic Arcade</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #050510;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    #game-root {
+      width: 100vw;
+      height: 100vh;
+    }
+    .hud {
+      position: fixed;
+      left: 12px;
+      bottom: 12px;
+      z-index: 10;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.36);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 12px;
+      padding: 8px 12px;
+      font-size: 14px;
+      line-height: 1.35;
+      pointer-events: none;
+      backdrop-filter: blur(6px);
+    }
+    .error {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: #070707;
+      color: #fff;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      white-space: pre-wrap;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-root"></div>
+  <div class="hud">Steuerung: ← → bewegen · Leertaste schießen · Ziel: alle Segmente zerstören</div>
+  <div id="error" class="error"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js"></script>
+  <script type="module">
+    import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.esm.js';
+
+    const WIDTH = 800;
+    const HEIGHT = 600;
+    const CELL = 20;
+    const COLS = WIDTH / CELL;
+    const ROWS = HEIGHT / CELL;
+    const PLAYER_ZONE_TOP = 440;
+    const PLAYER_ZONE_ROW = Math.floor(PLAYER_ZONE_TOP / CELL);
+    const PLAYER_SPEED = 250;
+    const BULLET_SPEED = 560;
+    const FIRE_DELAY = 180;
+    const PLAYER_LIVES = 3;
+    const START_SEGMENTS = 12;
+    const MUSHROOM_COUNT = 46;
+    const MUSHROOM_HEALTH = 4;
+    const INITIAL_STEP_DELAY = 122;
+    const MIN_STEP_DELAY = 64;
+    const ENABLE_SELF_TESTS = false;
+
+    function assert(condition, message) {
+      if (!condition) throw new Error(message);
+    }
+
+    function splitChainAtIndex(chain, index) {
+      return {
+        left: chain.slice(0, index),
+        removed: chain[index],
+        right: chain.slice(index + 1)
+      };
+    }
+
+    function cellToWorld(col, row) {
+      return {
+        x: col * CELL + CELL / 2,
+        y: row * CELL + CELL / 2
+      };
+    }
+
+    function worldToCell(x, y) {
+      return {
+        col: Math.floor(x / CELL),
+        row: Math.floor(y / CELL)
+      };
+    }
+
+    function mushroomKey(col, row) {
+      return `${col},${row}`;
+    }
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
+    }
+
+    function computeNextHeadCell(head, dir, verticalDir, mushroomSet, cols, rows, playerZoneRow) {
+      const candidateCol = head.col + dir;
+      const blockedByEdge = candidateCol < 0 || candidateCol >= cols;
+      const blockedByMushroom = mushroomSet.has(mushroomKey(candidateCol, head.row));
+      if (blockedByEdge || blockedByMushroom) {
+        let nextVerticalDir = verticalDir;
+        const inPlayerZone = head.row >= playerZoneRow;
+        if (inPlayerZone) {
+          if (head.row >= rows - 2) nextVerticalDir = -1;
+          else if (head.row <= playerZoneRow) nextVerticalDir = 1;
+        } else {
+          nextVerticalDir = 1;
+        }
+        return {
+          next: { col: head.col, row: clamp(head.row + nextVerticalDir, 0, rows - 2) },
+          nextDir: -dir,
+          nextVerticalDir,
+          turned: true
+        };
+      }
+      return {
+        next: { col: candidateCol, row: head.row },
+        nextDir: dir,
+        nextVerticalDir: verticalDir,
+        turned: false
+      };
+    }
+
+    function runTests() {
+      const chain = ['a', 'b', 'c', 'd'];
+      let result = splitChainAtIndex(chain, 0);
+      assert(result.left.length === 0, 'Test fehlgeschlagen: left bei index 0');
+      assert(result.removed === 'a', 'Test fehlgeschlagen: removed bei index 0');
+      assert(result.right.join(',') === 'b,c,d', 'Test fehlgeschlagen: right bei index 0');
+
+      result = splitChainAtIndex(chain, 2);
+      assert(result.left.join(',') === 'a,b', 'Test fehlgeschlagen: left bei index 2');
+      assert(result.removed === 'c', 'Test fehlgeschlagen: removed bei index 2');
+      assert(result.right.join(',') === 'd', 'Test fehlgeschlagen: right bei index 2');
+
+      result = splitChainAtIndex(chain, 3);
+      assert(result.left.join(',') === 'a,b,c', 'Test fehlgeschlagen: left bei letztem Index');
+      assert(result.removed === 'd', 'Test fehlgeschlagen: removed bei letztem Index');
+      assert(result.right.length === 0, 'Test fehlgeschlagen: right bei letztem Index');
+
+      let headResult = computeNextHeadCell({ col: 5, row: 3 }, 1, 1, new Set(), 40, 30, 22);
+      assert(headResult.next.col === 6 && headResult.next.row === 3, 'Test fehlgeschlagen: horizontaler Schritt nach rechts');
+      assert(headResult.nextDir === 1 && headResult.turned === false, 'Test fehlgeschlagen: Richtung bei freiem Feld');
+
+      headResult = computeNextHeadCell({ col: 39, row: 3 }, 1, 1, new Set(), 40, 30, 22);
+      assert(headResult.next.col === 39 && headResult.next.row === 4, 'Test fehlgeschlagen: Kante sollte Abstieg auslösen');
+      assert(headResult.nextDir === -1 && headResult.turned === true, 'Test fehlgeschlagen: Kante sollte Richtungswechsel auslösen');
+
+      headResult = computeNextHeadCell({ col: 8, row: 4 }, 1, 1, new Set([mushroomKey(9, 4)]), 40, 30, 22);
+      assert(headResult.next.col === 8 && headResult.next.row === 5, 'Test fehlgeschlagen: Pilz sollte Abstieg auslösen');
+      assert(headResult.nextDir === -1 && headResult.turned === true, 'Test fehlgeschlagen: Pilz sollte Richtungswechsel auslösen');
+
+      headResult = computeNextHeadCell({ col: 39, row: 28 }, 1, 1, new Set(), 40, 30, 22);
+      assert(headResult.next.row === 27 && headResult.nextVerticalDir === -1, 'Test fehlgeschlagen: im Spielerbereich sollte der Kopf nach oben pendeln');
+
+      const pos = cellToWorld(3, 7);
+      const back = worldToCell(pos.x, pos.y);
+      assert(back.col === 3 && back.row === 7, 'Test fehlgeschlagen: cellToWorld/worldToCell roundtrip');
+
+      console.info('Alle eingebauten Tests erfolgreich.');
+    }
+
+    if (ENABLE_SELF_TESTS) runTests();
+
+    function makeBeepDataUrl({ frequency = 740, duration = 0.06, volume = 0.35, sampleRate = 22050 } = {}) {
+      const samples = Math.max(1, Math.floor(sampleRate * duration));
+      const bytesPerSample = 2;
+      const dataSize = samples * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * bytesPerSample, true);
+      view.setUint16(32, bytesPerSample, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      for (let i = 0; i < samples; i++) {
+        const t = i / sampleRate;
+        const envelope = Math.max(0, 1 - i / samples);
+        const sample = Math.sin(2 * Math.PI * frequency * t) * volume * envelope;
+        view.setInt16(44 + i * 2, sample * 32767, true);
+      }
+
+      const bytes = new Uint8Array(buffer);
+      let binary = '';
+      const chunkSize = 0x8000;
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+      }
+      return 'data:audio/wav;base64,' + btoa(binary);
+    }
+
+    function createSafeHowl(src, volume = 0.42) {
+      try {
+        if (window.Howl) return new window.Howl({ src: [src], volume });
+      } catch (error) {
+        console.warn('Howler konnte nicht initialisiert werden:', error);
+      }
+      return { play() {} };
+    }
+
+    class PSYPipeline extends Phaser.Renderer.WebGL.Pipelines.PostFXPipeline {
+      constructor(game) {
+        super({
+          game,
+          renderTarget: true,
+          fragShader: `
+            precision mediump float;
+            uniform sampler2D uMainSampler;
+            varying vec2 outTexCoord;
+            uniform float uTime;
+
+            void main(void) {
+              vec2 uv = outTexCoord;
+              float wave = sin((uv.y * 16.0) + uTime * 1.2) * 0.010;
+              float swirl = cos((uv.x * 13.0) - uTime * 1.8) * 0.008;
+              uv.x += wave;
+              uv.y += swirl;
+
+              vec4 color = texture2D(uMainSampler, uv);
+
+              float r = texture2D(uMainSampler, uv + vec2(0.008 * sin(uTime + uv.y * 9.0), 0.0)).r;
+              float g = texture2D(uMainSampler, uv + vec2(0.0, 0.008 * cos(uTime + uv.x * 7.0))).g;
+              float b = texture2D(uMainSampler, uv + vec2(-0.008 * sin(uTime * 0.7 + uv.y * 11.0), 0.0)).b;
+
+              vec3 shifted = vec3(r, g, b);
+              float pulse = 0.92 + 0.08 * sin(uTime * 2.0 + uv.x * 10.0 + uv.y * 8.0);
+              shifted *= pulse;
+              shifted += 0.03 * vec3(
+                sin(uTime + uv.x * 20.0),
+                sin(uTime * 1.3 + uv.y * 24.0),
+                sin(uTime * 1.7 + (uv.x + uv.y) * 18.0)
+              );
+
+              gl_FragColor = vec4(shifted, color.a);
+            }
+          `
+        });
+        this._time = 0;
+      }
+      onPreRender() {
+        this._time += 0.016;
+        this.set1f('uTime', this._time);
+      }
+    }
+
+    class GameScene extends Phaser.Scene {
+      constructor() {
+        super('GameScene');
+        this.player = null;
+        this.cursors = null;
+        this.spaceKey = null;
+        this.bullets = null;
+        this.mushrooms = null;
+        this.segmentGroup = null;
+        this.chains = [];
+        this.mushroomMap = new Map();
+        this.score = 0;
+        this.scoreText = null;
+        this.levelText = null;
+        this.livesText = null;
+        this.gameOver = false;
+        this.lastShotTime = 0;
+        this.level = 1;
+        this.lives = PLAYER_LIVES;
+        this.respawnUntil = 0;
+        this.stepDelay = INITIAL_STEP_DELAY;
+        this.stepAccumulator = 0;
+        this.backgroundContainer = null;
+        this.groundGlow = null;
+        this.shootSound = createSafeHowl(makeBeepDataUrl({ frequency: 1040, duration: 0.045, volume: 0.25 }), 0.3);
+        this.hitSound = createSafeHowl(makeBeepDataUrl({ frequency: 180, duration: 0.08, volume: 0.42 }), 0.42);
+        this.mushroomSound = createSafeHowl(makeBeepDataUrl({ frequency: 310, duration: 0.06, volume: 0.35 }), 0.35);
+      }
+
+      preload() {
+        this.createTextures();
+      }
+
+      createTextures() {
+        const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+        g.clear();
+        g.fillStyle(0xfff000, 1);
+        g.fillCircle(22, 22, 14);
+        g.fillStyle(0xff00cc, 1);
+        for (let i = 0; i < 8; i++) {
+          const a = (Math.PI * 2 * i) / 8;
+          const px = 22 + Math.cos(a) * 16;
+          const py = 22 + Math.sin(a) * 16;
+          g.fillEllipse(px, py, 10, 18);
+        }
+        g.fillStyle(0x00ccff, 1);
+        g.fillTriangle(22, 6, 10, 34, 34, 34);
+        g.generateTexture('player', 44, 44);
+
+        g.clear();
+        g.fillStyle(0xffffff, 1);
+        g.fillEllipse(5, 9, 8, 18);
+        g.fillStyle(0xff00ff, 1);
+        g.fillEllipse(5, 9, 4, 10);
+        g.generateTexture('bullet', 10, 18);
+
+        g.clear();
+        g.fillStyle(0x79ff00, 1);
+        g.fillCircle(18, 18, 16);
+        g.fillStyle(0xff00f7, 1);
+        g.fillEllipse(18, 18, 24, 14);
+        g.fillStyle(0x00eaff, 1);
+        g.fillCircle(11, 14, 4);
+        g.fillCircle(25, 14, 4);
+        g.fillStyle(0x120018, 1);
+        g.fillCircle(11, 14, 2);
+        g.fillCircle(25, 14, 2);
+        g.fillStyle(0xffdd00, 1);
+        g.fillEllipse(18, 24, 12, 6);
+        g.generateTexture('segment', 36, 36);
+
+        g.clear();
+        g.fillStyle(0xff6a00, 1);
+        g.fillEllipse(20, 14, 34, 20);
+        g.fillStyle(0x00ffd9, 1);
+        g.fillEllipse(20, 15, 18, 8);
+        g.fillStyle(0xff00de, 1);
+        g.fillRect(16, 18, 8, 18);
+        g.fillStyle(0x00ccff, 1);
+        g.fillEllipse(10, 14, 8, 8);
+        g.fillEllipse(30, 14, 8, 8);
+        g.generateTexture('mushroom', 40, 38);
+
+        g.clear();
+        g.fillStyle(0xff3ea5, 1);
+        g.fillCircle(20, 20, 6);
+        for (let i = 0; i < 12; i++) {
+          const a = (Math.PI * 2 * i) / 12;
+          const px = 20 + Math.cos(a) * 12;
+          const py = 20 + Math.sin(a) * 12;
+          g.fillEllipse(px, py, 6, 12);
+        }
+        g.generateTexture('flower', 40, 40);
+
+        g.destroy();
+      }
+
+      create() {
+        this.score = 0;
+        this.level = 1;
+        this.lives = PLAYER_LIVES;
+        this.stepDelay = INITIAL_STEP_DELAY;
+        this.startRound();
+      }
+
+      startRound() {
+        this.gameOver = false;
+        this.lastShotTime = 0;
+        this.stepAccumulator = 0;
+        this.chains = [];
+        this.mushroomMap = new Map();
+        this.respawnUntil = 0;
+
+        this.children.removeAll();
+        this.physics.world.colliders.destroy();
+
+        this.drawPsychedelicBackground();
+
+        this.player = this.physics.add.sprite(WIDTH / 2, HEIGHT - 28, 'player');
+        this.player.setDepth(5);
+        this.player.setCollideWorldBounds(true);
+        this.player.body.allowGravity = false;
+        this.player.setScale(0.86);
+
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        this.bullets = this.physics.add.group({ maxSize: 1, runChildUpdate: false });
+        this.segmentGroup = this.physics.add.group();
+        this.mushrooms = this.physics.add.staticGroup();
+
+        this.spawnMushrooms();
+        this.spawnCentipede();
+
+        this.physics.add.overlap(this.bullets, this.mushrooms, this.hitMushroom, undefined, this);
+        this.physics.add.overlap(this.bullets, this.segmentGroup, this.hitSegment, undefined, this);
+        this.physics.add.overlap(this.player, this.segmentGroup, this.handlePlayerHit, undefined, this);
+
+        this.scoreText = this.add.text(12, 10, `Score: ${this.score}`, {
+          fontSize: '26px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 5
+        }).setDepth(10);
+
+        this.levelText = this.add.text(12, 40, `Level: ${this.level} · Arcade AI`, {
+          fontSize: '18px',
+          color: '#9fe5ff',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setDepth(10);
+
+        this.livesText = this.add.text(WIDTH - 12, 14, `Lives: ${this.lives}`, {
+          fontSize: '18px',
+          color: '#fff0a8',
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'right'
+        }).setOrigin(1, 0).setDepth(10);
+
+        const title = this.add.text(WIDTH - 14, 14, 'PSY Centipede', {
+          fontSize: '20px',
+          color: '#fff0a8',
+          stroke: '#000000',
+          strokeThickness: 4
+        }).setOrigin(1, 0).setDepth(10);
+        title.setAngle(-2);
+
+        this.cameras.main.fadeIn(220, 0, 0, 0);
+      }
+
+      drawPsychedelicBackground() {
+        const bg = this.add.container(0, 0);
+        this.backgroundContainer = bg;
+
+        const sky = this.add.graphics();
+        for (let i = 0; i < HEIGHT; i += 4) {
+          const hue = (250 + i * 0.22) % 360;
+          const rgb = Phaser.Display.Color.HSVToRGB(hue / 360, 0.55, 0.18 + (i / HEIGHT) * 0.2);
+          sky.fillStyle(rgb.color, 1);
+          sky.fillRect(0, i, WIDTH, 4);
+        }
+        bg.add(sky);
+
+        for (let i = 0; i < 18; i++) {
+          const flower = this.add.image(
+            Phaser.Math.Between(20, WIDTH - 20),
+            Phaser.Math.Between(20, HEIGHT - 20),
+            'flower'
+          );
+          flower.setTint(Phaser.Display.Color.RandomRGB().color);
+          flower.setAlpha(0.18);
+          flower.setScale(Phaser.Math.FloatBetween(0.8, 1.8));
+          flower.setAngle(Phaser.Math.Between(0, 360));
+          flower.setBlendMode(Phaser.BlendModes.ADD);
+          bg.add(flower);
+        }
+
+        for (let i = 0; i < 22; i++) {
+          const blob = this.add.graphics();
+          const baseX = Phaser.Math.Between(0, WIDTH);
+          const baseY = Phaser.Math.Between(0, HEIGHT);
+          const fill = Phaser.Display.Color.RandomRGB().color;
+          blob.fillStyle(fill, 0.14);
+          const points = [];
+          const radius = Phaser.Math.Between(24, 58);
+          for (let s = 0; s < 12; s++) {
+            const a = (Math.PI * 2 * s) / 12;
+            const r = radius + Math.sin(i + s * 1.4) * 10;
+            points.push(new Phaser.Math.Vector2(baseX + Math.cos(a) * r, baseY + Math.sin(a) * r));
+          }
+          blob.fillPoints(points, true);
+          blob.setBlendMode(Phaser.BlendModes.ADD);
+          blob.__drift = Phaser.Math.FloatBetween(0.1, 0.35);
+          blob.__phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+          bg.add(blob);
+        }
+
+        for (let i = 0; i < 100; i++) {
+          const star = this.add.circle(
+            Phaser.Math.Between(0, WIDTH),
+            Phaser.Math.Between(0, HEIGHT - 80),
+            Phaser.Math.Between(1, 2),
+            0xffffff,
+            Phaser.Math.FloatBetween(0.3, 0.9)
+          );
+          this.tweens.add({
+            targets: star,
+            alpha: Phaser.Math.FloatBetween(0.2, 1),
+            duration: Phaser.Math.Between(1200, 3200),
+            yoyo: true,
+            repeat: -1
+          });
+          bg.add(star);
+        }
+
+        const playerZone = this.add.rectangle(
+          WIDTH / 2,
+          (PLAYER_ZONE_TOP + HEIGHT) / 2,
+          WIDTH,
+          HEIGHT - PLAYER_ZONE_TOP,
+          0x302016,
+          0.45
+        );
+        playerZone.setStrokeStyle(2, 0x7aff86, 0.3);
+        bg.add(playerZone);
+
+        const zoneGlow = this.add.rectangle(WIDTH / 2, PLAYER_ZONE_TOP + 4, WIDTH, 8, 0xb7ff57, 0.12);
+        bg.add(zoneGlow);
+        this.groundGlow = zoneGlow;
+      }
+
+      spawnMushrooms() {
+        const taken = new Set();
+        for (let i = 0; i < MUSHROOM_COUNT; i++) {
+          let col = 0;
+          let row = 0;
+          let key = '';
+          do {
+            col = Phaser.Math.Between(1, COLS - 2);
+            row = Phaser.Math.Between(2, PLAYER_ZONE_ROW - 2);
+            key = mushroomKey(col, row);
+          } while (taken.has(key));
+          taken.add(key);
+          this.createMushroomAtCell(col, row, MUSHROOM_HEALTH);
+        }
+      }
+
+      createMushroomAtCell(col, row, health = MUSHROOM_HEALTH) {
+        const key = mushroomKey(col, row);
+        if (this.mushroomMap.has(key)) return this.mushroomMap.get(key);
+        const world = cellToWorld(col, row);
+        const mushroom = this.mushrooms.create(world.x, world.y, 'mushroom');
+        mushroom.setData('health', health);
+        mushroom.setData('col', col);
+        mushroom.setData('row', row);
+        mushroom.setTint(Phaser.Display.Color.RandomRGB().color);
+        this.mushroomMap.set(key, mushroom);
+        return mushroom;
+      }
+
+      removeMushroom(mushroom) {
+        const col = mushroom.getData('col');
+        const row = mushroom.getData('row');
+        this.mushroomMap.delete(mushroomKey(col, row));
+        mushroom.destroy();
+      }
+
+      spawnCentipede() {
+        const sprites = [];
+        for (let i = 0; i < START_SEGMENTS; i++) {
+          const segment = this.physics.add.sprite(0, 0, 'segment');
+          const col = 10 - i;
+          const row = 3;
+          const world = cellToWorld(col, row);
+          segment.setPosition(world.x, world.y);
+          segment.setDepth(6);
+          segment.body.allowGravity = false;
+          segment.setTint(Phaser.Display.Color.RandomRGB().color);
+          segment.setScale(i === 0 ? 1.04 : 0.9);
+          segment.setData('col', col);
+          segment.setData('row', row);
+          this.segmentGroup.add(segment);
+          sprites.push(segment);
+        }
+        this.chains.push({ dir: 1, verticalDir: 1, sprites });
+        this.refreshChainVisuals();
+      }
+
+      refreshChainVisuals() {
+        this.chains = this.chains.filter((chain) => chain.sprites.some((sprite) => sprite.active));
+        for (const chain of this.chains) {
+          chain.sprites = chain.sprites.filter((sprite) => sprite.active);
+          chain.sprites.forEach((sprite, index) => {
+            sprite.setScale(index === 0 ? 1.08 : 0.9);
+            sprite.setData('isHead', index === 0);
+            if (index === 0) {
+              sprite.setTint(0xfff13a);
+            } else {
+              sprite.setTint(Phaser.Display.Color.HSVToRGB((index * 0.12 + this.level * 0.07) % 1, 0.8, 1).color);
+            }
+          });
+        }
+      }
+
+      update(time, delta) {
+        if (this.gameOver) return;
+
+        this.animateBackground(time);
+        this.updatePlayer(time);
+        this.updateBullets();
+
+        this.stepAccumulator += delta;
+        while (this.stepAccumulator >= this.stepDelay) {
+          this.stepAccumulator -= this.stepDelay;
+          this.stepCentipedes();
+        }
+
+        if (this.segmentGroup.countActive(true) === 0) {
+          this.levelUp();
+        }
+      }
+
+      animateBackground(time) {
+        if (!this.backgroundContainer) return;
+        if (this.groundGlow) {
+          this.groundGlow.alpha = 0.08 + Math.sin(time * 0.003) * 0.04;
+        }
+        this.backgroundContainer.iterate((child, index) => {
+          if (!child) return;
+          if (child.type === 'Image') {
+            child.angle += 0.08 + index * 0.002;
+            child.scaleX = 1 + Math.sin(time * 0.001 + index) * 0.06;
+            child.scaleY = 1 + Math.cos(time * 0.0012 + index) * 0.06;
+          } else if (child.type === 'Graphics' && child.__drift !== undefined) {
+            child.x = Math.sin(time * 0.0004 + child.__phase) * 8 * child.__drift;
+            child.y = Math.cos(time * 0.00045 + child.__phase) * 5 * child.__drift;
+          }
+        });
+      }
+
+      updatePlayer(time) {
+        if (!this.player.active) {
+          if (time >= this.respawnUntil) this.respawnPlayer();
+          return;
+        }
+        let vx = 0;
+        let vy = 0;
+        if (this.cursors.left.isDown) vx = -PLAYER_SPEED;
+        if (this.cursors.right.isDown) vx = PLAYER_SPEED;
+        if (this.cursors.up.isDown) vy = -PLAYER_SPEED;
+        if (this.cursors.down.isDown) vy = PLAYER_SPEED;
+        this.player.setVelocityX(vx);
+        this.player.setVelocityY(vy);
+        this.player.x = Phaser.Math.Clamp(this.player.x, 18, WIDTH - 18);
+        this.player.y = Phaser.Math.Clamp(this.player.y, PLAYER_ZONE_TOP + 10, HEIGHT - 22);
+
+        if (Phaser.Input.Keyboard.JustDown(this.spaceKey) && time - this.lastShotTime > FIRE_DELAY) {
+          const bullet = this.bullets.get(this.player.x, this.player.y - 18, 'bullet');
+          if (bullet) {
+            bullet.setActive(true).setVisible(true);
+            bullet.body.enable = true;
+            bullet.body.allowGravity = false;
+            bullet.setPosition(this.player.x, this.player.y - 18);
+            bullet.setVelocity(0, -BULLET_SPEED);
+            bullet.setDepth(7);
+            bullet.setTint(0xff61ff);
+            this.lastShotTime = time;
+            this.shootSound.play();
+          }
+        }
+      }
+
+      updateBullets() {
+        this.bullets.children.each((bullet) => {
+          if (bullet.active && bullet.y < -24) this.recycleBullet(bullet);
+        });
+      }
+
+      recycleBullet(bullet) {
+        bullet.setActive(false);
+        bullet.setVisible(false);
+        bullet.body.stop();
+        bullet.body.enable = false;
+      }
+
+      stepCentipedes() {
+        const mushroomSet = new Set(this.mushroomMap.keys());
+        for (const chain of this.chains) {
+          if (!chain.sprites.length) continue;
+          const previous = chain.sprites.map((sprite) => ({
+            col: sprite.getData('col'),
+            row: sprite.getData('row')
+          }));
+
+          const head = previous[0];
+          const headStep = computeNextHeadCell(head, chain.dir, chain.verticalDir, mushroomSet, COLS, ROWS, PLAYER_ZONE_ROW);
+          chain.dir = headStep.nextDir;
+          chain.verticalDir = headStep.nextVerticalDir;
+
+          chain.sprites[0].setData('col', headStep.next.col);
+          chain.sprites[0].setData('row', headStep.next.row);
+
+          for (let i = 1; i < chain.sprites.length; i++) {
+            chain.sprites[i].setData('col', previous[i - 1].col);
+            chain.sprites[i].setData('row', previous[i - 1].row);
+          }
+
+          chain.sprites.forEach((sprite, index) => {
+            const col = sprite.getData('col');
+            const row = sprite.getData('row');
+            const world = cellToWorld(col, row);
+            this.tweens.add({
+              targets: sprite,
+              x: world.x,
+              y: world.y,
+              duration: this.stepDelay * 0.95,
+              ease: 'Sine.easeInOut'
+            });
+            if (index === 0 && headStep.turned) {
+              sprite.setTint(Phaser.Display.Color.RandomRGB().color);
+            }
+          });
+        }
+        this.refreshChainVisuals();
+      }
+
+      hitMushroom(bullet, mushroom) {
+        if (!bullet.active || !mushroom.active) return;
+        this.recycleBullet(bullet);
+
+        const health = (mushroom.getData('health') ?? 1) - 1;
+        mushroom.setData('health', health);
+        mushroom.setTint(Phaser.Display.Color.RandomRGB().color);
+        this.mushroomSound.play();
+
+        if (health <= 0) {
+          this.removeMushroom(mushroom);
+          this.addScore(5);
+        }
+      }
+
+      hitSegment(bullet, segment) {
+        if (!bullet.active || !segment.active) return;
+        this.recycleBullet(bullet);
+        this.hitSound.play();
+        this.addScore(10);
+
+        for (let chainIndex = 0; chainIndex < this.chains.length; chainIndex++) {
+          const chain = this.chains[chainIndex];
+          const index = chain.sprites.indexOf(segment);
+          if (index === -1) continue;
+
+          const split = splitChainAtIndex(chain.sprites, index);
+          const spawnCol = segment.getData('col');
+          const spawnRow = segment.getData('row');
+          segment.destroy();
+
+          const replacementChains = [];
+          if (split.left.length > 0) {
+            replacementChains.push({ dir: chain.dir, verticalDir: chain.verticalDir, sprites: split.left });
+          }
+          if (split.right.length > 0) {
+            replacementChains.push({ dir: -chain.dir, verticalDir: chain.verticalDir, sprites: split.right });
+          }
+
+          this.chains.splice(chainIndex, 1, ...replacementChains);
+          this.createMushroomAtCell(spawnCol, spawnRow, MUSHROOM_HEALTH);
+          this.refreshChainVisuals();
+          return;
+        }
+      }
+
+      handlePlayerHit() {
+        if (!this.player.active || this.gameOver) return;
+        this.lives -= 1;
+        if (this.livesText) this.livesText.setText(`Lives: ${this.lives}`);
+        this.player.disableBody(true, true);
+        this.playerHitBurst();
+        if (this.lives <= 0) {
+          this.endGame('GAME OVER');
+          return;
+        }
+        this.respawnUntil = this.time.now + 1100;
+      }
+
+      levelUp() {
+        this.level += 1;
+        this.stepDelay = Math.max(MIN_STEP_DELAY, this.stepDelay - 10);
+        this.levelText.setText(`Level: ${this.level} · Arcade AI`);
+        this.cameras.main.flash(180, 255, 0, 255);
+        this.spawnCentipede();
+        this.refreshChainVisuals();
+      }
+
+      respawnPlayer() {
+        this.player.enableBody(true, WIDTH / 2, HEIGHT - 28, true, true);
+        this.player.setVelocity(0, 0);
+        this.player.setScale(0.86);
+      }
+
+      playerHitBurst() {
+        const burst = this.add.circle(this.player.x, this.player.y, 12, 0xff7a7a, 0.4).setDepth(22);
+        burst.setBlendMode(Phaser.BlendModes.ADD);
+        this.tweens.add({
+          targets: burst,
+          radius: 34,
+          alpha: 0,
+          duration: 220,
+          onComplete: () => burst.destroy()
+        });
+      }
+
+      endGame(label) {
+        if (this.gameOver) return;
+        this.gameOver = true;
+        this.player.setVelocity(0, 0);
+        this.add.rectangle(WIDTH / 2, HEIGHT / 2, 360, 132, 0x000000, 0.72)
+          .setStrokeStyle(3, 0xffffff, 0.35)
+          .setDepth(20);
+        this.add.text(WIDTH / 2, HEIGHT / 2 - 10, label, {
+          fontSize: '38px',
+          color: '#ff7a7a',
+          stroke: '#000000',
+          strokeThickness: 6,
+          align: 'center'
+        }).setOrigin(0.5).setDepth(21);
+        this.add.text(WIDTH / 2, HEIGHT / 2 + 34, 'Seite neu laden für Neustart', {
+          fontSize: '18px',
+          color: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 4,
+          align: 'center'
+        }).setOrigin(0.5).setDepth(21);
+      }
+
+      addScore(points) {
+        this.score += points;
+        if (this.scoreText) this.scoreText.setText(`Score: ${this.score}`);
+      }
+    }
+
+    try {
+      const game = new Phaser.Game({
+        banner: false,
+        type: Phaser.AUTO,
+        parent: 'game-root',
+        width: WIDTH,
+        height: HEIGHT,
+        backgroundColor: '#050510',
+        physics: {
+          default: 'arcade',
+          arcade: { debug: false }
+        },
+        scene: [GameScene],
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH
+        }
+      });
+
+      game.renderer.pipelines.addPostPipeline('PSYPipeline', PSYPipeline);
+      game.events.once('ready', () => {
+        const scene = game.scene.getScene('GameScene');
+        if (scene && scene.cameras && scene.cameras.main) {
+          scene.cameras.main.setPostPipeline('PSYPipeline');
+        }
+      });
+    } catch (error) {
+      console.error(error);
+      const errorEl = document.getElementById('error');
+      errorEl.style.display = 'flex';
+      errorEl.textContent = 'Das Spiel konnte nicht gestartet werden.\n\n' + (error?.stack || error?.message || String(error));
+    }
+  </script>
+</body>
+</html>
