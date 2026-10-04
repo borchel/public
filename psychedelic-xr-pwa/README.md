@@ -1,5 +1,10 @@
-# Psychedelic XR Portal PWA
+# Psychedelic Universal XR PWA
+Eine adaptive PWA für Desktop, Mobilgeräte und WebXR-Headsets.
 
-Upload all files to a GitHub repository. Enable GitHub Pages under Settings > Pages, Deploy from a branch, main, root. Open the resulting HTTPS page in Android Chrome or Meta Quest Browser.
+- Desktop: 3D mit WASD + Maus
+- Mobil: 3D mit Touch-Joystick + Touch-Look; AR falls `immersive-ar` verfügbar
+- Quest/XR-Headset: AR/MR falls verfügbar; VR falls verfügbar; Controller-Trigger zur AR-Platzierung
+- Die Buttons werden über `navigator.xr.isSessionSupported()` automatisch aktiviert/deaktiviert.
 
-Three.js is currently loaded from the CDN used by the XR application, so the first launch requires internet access.
+GitHub Pages: gesamten Ordner in Repository-Root hochladen und Pages für `main / root` aktivieren.
+Hinweis: Three.js wird in dieser Fassung noch von jsDelivr geladen.

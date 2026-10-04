@@ -1,72 +1,58 @@
-<!doctype html><html lang=de><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Quest MR Portal v3</title><style>body{margin:0;background:#10131b;color:#fff;font:14px system-ui}header{padding:10px;display:flex;gap:10px;align-items:center}button{padding:10px;border:0;border-radius:8px;background:#087e75;color:white}#v{height:calc(100vh - 65px)}</style><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#160022"><meta name="mobile-web-app-capable" content="yes"><link rel="apple-touch-icon" href="./icons/icon-192.png"></head><body><header><b>Quest MR Portal v3</b><button id=b disabled>MR prüfen…</button><span id=s>Lade…</span></header><div id=v></div><script type=module>
-const T=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm'),v=document.querySelector('#v'),b=document.querySelector('#b'),s=document.querySelector('#s');
-const S=new T.Scene(),C=new T.PerspectiveCamera(70,1,.03,100),R=new T.WebGLRenderer({alpha:true,antialias:true});R.xr.enabled=true;R.setPixelRatio(Math.min(devicePixelRatio,2));v.append(R.domElement);S.add(new T.HemisphereLight(0xffffff,0x334455,3));
-const W=new T.Group();W.visible=false;S.add(W);const g=new T.Mesh(new T.CircleGeometry(2.5,40),new T.MeshStandardMaterial({color:0x39aa58,transparent:true,opacity:.25,depthWrite:false}));g.rotation.x=-Math.PI/2;W.add(g);
-const P=new T.Group();P.position.set(0,1.15,-1.6);W.add(P);const rm=new T.MeshStandardMaterial({color:0x55ddff,emissive:0x22bbff,emissiveIntensity:4});const ring=new T.Mesh(new T.TorusGeometry(.82,.09,16,50),rm);P.add(ring);P.add(new T.Mesh(new T.CircleGeometry(.73,40),new T.MeshBasicMaterial({color:0x813cff,transparent:true,opacity:.4,side:T.DoubleSide})));
-const V=new T.Group();V.visible=false;W.add(V);
-const f=new T.Mesh(new T.PlaneGeometry(70,70,18,18),new T.MeshStandardMaterial({color:0x240038,emissive:0x350055,emissiveIntensity:1.4,roughness:.55}));f.rotation.x=-Math.PI/2;V.add(f);
-const sky=new T.Mesh(new T.SphereGeometry(38,32,20),new T.MeshBasicMaterial({color:0x13002f,side:T.BackSide}));V.add(sky);
-const movers=[],rings=[],floaters=[];
-for(let i=0;i<320;i++){let c=new T.Color().setHSL(Math.random(),1,.68),x=new T.Mesh(new T.SphereGeometry(.025+Math.random()*.07,6,4),new T.MeshBasicMaterial({color:c}));x.position.set((Math.random()-.5)*35,.2+Math.random()*12,-2-Math.random()*35);x.userData={p:Math.random()*6.28,s:.5+Math.random()*1.8,b:x.position.y};V.add(x);floaters.push(x)}
-for(let i=0;i<18;i++){let c=new T.Color().setHSL(i/18,1,.62),r=new T.Mesh(new T.TorusGeometry(2.6+Math.sin(i*.7)*.55,.055+i*.002,8,48),new T.MeshBasicMaterial({color:c,transparent:true,opacity:.92}));r.position.set(Math.sin(i*.9)*.7,2.3+Math.cos(i*.6)*.45,-4-i*1.55);r.rotation.z=i*.31;V.add(r);rings.push(r)}
-for(let i=0;i<28;i++){let c=new T.Color().setHSL(Math.random(),1,.58),g=new T.Group(),h=.5+Math.random()*1.7,stem=new T.Mesh(new T.CylinderGeometry(.04,.11,h*.65,7),new T.MeshStandardMaterial({color:0xf4e3ff,emissive:0x662288,emissiveIntensity:.8})),cap=new T.Mesh(new T.SphereGeometry(h*.24,12,7,0,Math.PI*2,0,Math.PI/2),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:3}));stem.position.y=h*.32;cap.position.y=h*.65;g.add(stem,cap);g.position.set((Math.random()-.5)*13,0,-3-Math.random()*25);g.userData={p:Math.random()*6.28};V.add(g);movers.push(g)}
-for(let i=0;i<10;i++){let c=new T.Color().setHSL(i/10,1,.6),k=new T.Mesh(new T.IcosahedronGeometry(.35+Math.random()*.35,1),new T.MeshBasicMaterial({color:c,wireframe:true}));k.position.set((Math.random()-.5)*9,1+Math.random()*5,-5-Math.random()*20);k.userData={p:Math.random()*6.28};V.add(k);movers.push(k)}
-const sun=new T.Mesh(new T.SphereGeometry(2.2,24,16),new T.MeshBasicMaterial({color:0xff22cc}));sun.position.set(0,7,-28);V.add(sun);
-const halo=new T.Mesh(new T.TorusGeometry(3.1,.16,10,48),new T.MeshBasicMaterial({color:0x22ffff}));halo.position.copy(sun.position);V.add(halo);
-const ret=new T.Mesh(new T.RingGeometry(.08,.14,32),new T.MeshBasicMaterial({color:0x22ffff,side:T.DoubleSide,depthTest:false}));ret.rotation.x=-Math.PI/2;ret.matrixAutoUpdate=false;ret.visible=false;S.add(ret);
-const warp=new T.Group();warp.visible=false;S.add(warp);
-const warpShell=new T.Mesh(new T.SphereGeometry(1.8,24,16),new T.MeshBasicMaterial({color:0x3b006f,side:T.BackSide,transparent:true,opacity:.0,depthTest:false}));warp.add(warpShell);
-const streaks=[];
-for(let i=0;i<90;i++){
- const c=new T.Color().setHSL(Math.random(),1,.65);
- const m=new T.Mesh(new T.CylinderGeometry(.008,.018,.8+Math.random()*1.8,5),new T.MeshBasicMaterial({color:c,transparent:true,opacity:.85,depthTest:false}));
- const a=Math.random()*Math.PI*2,r=.25+Math.random()*1.25,z=-.2-Math.random()*5;
- m.position.set(Math.cos(a)*r,Math.sin(a)*r,z);m.rotation.x=Math.PI/2;m.userData={z,spd:2+Math.random()*5,h:Math.random()};warp.add(m);streaks.push(m);
-}
-let warping=false,warpT=0,warpDir=0;
-function startWarp(dir){
- warping=true;warpT=0;warpDir=dir;warp.visible=true;state='warp';armed=false;
- s.textContent=dir>0?'WARP – Eintritt in die psychedelische Welt…':'WARP – Rückkehr in MR…';
-}
-function updateWarp(dt,t){
- if(!warping)return;
- warpT+=dt;C.getWorldPosition(head);warp.position.copy(head);warp.quaternion.copy(C.quaternion);
- const u=Math.min(1,warpT/1.8),pulse=.5+.5*Math.sin(t*.018);
- warpShell.material.opacity=Math.min(.97,Math.sin(Math.PI*u)*.92);
- warpShell.material.color.setHSL((t*.00025)%1,1,.18+.12*pulse);
- streaks.forEach((x,i)=>{
-   x.position.z+=dt*x.userData.spd*(1+u*7);
-   if(x.position.z>1){x.position.z=-5-Math.random()*2;x.userData.spd=2+Math.random()*5}
-   x.material.color.setHSL((t*.00035+x.userData.h)%1,1,.68);
-   x.scale.y=1+u*5;
- });
- R.toneMappingExposure=1.5+u*1.2+Math.sin(t*.025)*.15;
- if(u>.48 && !warp.userData.switched){
-   warp.userData.switched=true;
-   if(warpDir>0){V.visible=true;g.visible=false;S.background=new T.Color(0x100018)}
-   else{V.visible=false;g.visible=true;S.background=null}
- }
- if(u>=1){
-   warping=false;warp.visible=false;warp.userData.switched=false;
-   state=warpDir>0?'virtual':'mr';R.toneMappingExposure=state==='virtual'?1.55:1.3;
-   s.textContent=state==='virtual'?'PSYCHEDELIC MODE – zurück durchs Portal für MR':'Zurück in MR – Portal erneut betretbar';
- }
-}
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Psychedelic Universal XR</title><link rel="manifest" href="./manifest.webmanifest"><meta name="theme-color" content="#12001f">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#090510;color:#fff;font:14px system-ui;overflow:hidden}#bar{position:fixed;z-index:20;top:0;left:0;right:0;padding:8px;display:flex;gap:7px;flex-wrap:wrap;background:#090510cc;backdrop-filter:blur(8px)}button{padding:9px 12px;border:1px solid #675b7a;border-radius:9px;background:#292238;color:#fff}button.primary{background:#087e75}button:disabled{opacity:.35}#status{padding:9px;color:#d9d2e6}#view{width:100vw;height:100vh}#joy{display:none;position:fixed;z-index:15;bottom:24px;left:24px;width:120px;height:120px;border:2px solid #ffffff55;border-radius:50%;touch-action:none}#nub{position:absolute;left:42px;top:42px;width:34px;height:34px;border-radius:50%;background:#ffffff99}#look{display:none;position:fixed;z-index:14;right:0;bottom:0;width:50vw;height:65vh;touch-action:none}.mobile #joy,.mobile #look{display:block}
+</style></head><body><div id="bar"><b style="padding:9px">Psychedelic XR</b><button id="d">3D</button><button id="ar" disabled>AR/MR</button><button id="vr" disabled>VR</button><button id="fs">Vollbild</button><span id="status">Prüfe Gerät…</span></div><div id="view"></div><div id="joy"><div id="nub"></div></div><div id="look"></div>
+<script type="module">
+const T=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm');
+const $=x=>document.querySelector(x),view=$('#view'),status=$('#status'),arB=$('#ar'),vrB=$('#vr');
+const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(mobile)document.body.classList.add('mobile');
+const S=new T.Scene();S.background=new T.Color(0x100018);const C=new T.PerspectiveCamera(70,1,.03,120);C.position.set(0,1.65,4);
+const R=new T.WebGLRenderer({alpha:true,antialias:true});R.xr.enabled=true;R.setPixelRatio(Math.min(devicePixelRatio,2));R.outputColorSpace=T.SRGBColorSpace;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.45;view.append(R.domElement);
+S.add(new T.HemisphereLight(0xffffff,0x332255,3));
+const rig=new T.Group();rig.add(C);S.add(rig);
 
-let ses,ref,viewerSrc,lastHit,placed=false,state='mr',armed=false,ctrlSrc=new Map(),last=performance.now();const head=new T.Vector3(),loc=new T.Vector3();
-const ctrls=[0,1].map(i=>{let c=R.xr.getController(i);S.add(c);let l=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3(0,0,-1)]),new T.LineBasicMaterial({color:0xffffff}));l.scale.z=3;c.add(l);c.addEventListener('connected',async e=>{c.userData.src=e.data;if(ses)try{ctrlSrc.set(c,await ses.requestHitTestSource({space:e.data.targetRaySpace}))}catch(_){}});c.addEventListener('selectstart',()=>{if(!placed&&lastHit)place(lastHit)});return c});
-async function place(h){let p=h.getPose(ref);if(!p)return;let m=new T.Matrix4().fromArray(p.transform.matrix),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3();m.decompose(pos,q,sc);W.position.copy(pos);C.getWorldPosition(head);W.rotation.set(0,Math.atan2(head.x-pos.x,head.z-pos.z),0);W.visible=true;placed=true;ret.visible=false;s.textContent='Portal gesetzt. Gehe von vorne hindurch.';try{if(h.createAnchor){await h.createAnchor();s.textContent='Portal gesetzt + Anchor erstellt. Gehe hindurch.'}}catch(_){}}
-function crossing(){if(!placed||warping)return;C.getWorldPosition(head);P.worldToLocal(loc.copy(head));let open=Math.abs(loc.x)<.8&&Math.abs(loc.y)<1.1;if(state==='mr'){if(open&&loc.z>.15&&loc.z<1.5){armed=true;rm.emissiveIntensity=8;s.textContent='Portal erkannt – weitergehen'}if(armed&&open&&loc.z<-.15){armed=false;startWarp(1)}}else{if(open&&loc.z<-.15&&loc.z>-1.5)armed=true;if(armed&&open&&loc.z>.15){armed=false;startWarp(-1)}}}
-async function support(){let ok=!!navigator.xr&&await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);b.disabled=!ok;b.textContent=ok?'Enter MR':'MR nicht verfügbar';s.textContent=ok?'WebXR bereit':'Kein immersive-ar'}
-b.onclick=async()=>{try{ses=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['local-floor','anchors','plane-detection']});R.xr.setReferenceSpaceType('local-floor');await R.xr.setSession(ses);ref=await ses.requestReferenceSpace('local-floor').catch(()=>ses.requestReferenceSpace('local'));let viewer=await ses.requestReferenceSpace('viewer');viewerSrc=await ses.requestHitTestSource({space:viewer});for(const c of ctrls)if(c.userData.src)try{ctrlSrc.set(c,await ses.requestHitTestSource({space:c.userData.src.targetRaySpace}))}catch(_){}s.textContent='Mit Controller auf Boden zeigen und Trigger drücken';ses.addEventListener('end',()=>location.reload())}catch(e){s.textContent='Fehler: '+e.message}};
-function resize(){if(R.xr.isPresenting)return;let w=v.clientWidth,h=v.clientHeight;R.setSize(w,h,false);C.aspect=w/h;C.updateProjectionMatrix()}new ResizeObserver(resize).observe(v);resize();support();
-R.setAnimationLoop((t,frame)=>{if(frame&&ses&&!placed){let h=null;for(const c of ctrls){let src=ctrlSrc.get(c);if(src){let a=frame.getHitTestResults(src);if(a.length){h=a[0];break}}}if(!h&&viewerSrc){let a=frame.getHitTestResults(viewerSrc);if(a.length)h=a[0]}lastHit=h;if(h){let p=h.getPose(ref);if(p){ret.visible=true;ret.matrix.fromArray(p.transform.matrix)}}else ret.visible=false}
-crossing();let dt=Math.min(.04,(t-last)/1000);last=t;ring.rotation.z+=dt*.9;updateWarp(dt,t);
-if(state==='virtual'){let tt=t*.001;sky.material.color.setHSL((tt*.025)%1,.9,.09);sun.scale.setScalar(1+.18*Math.sin(tt*3));sun.material.color.setHSL((tt*.08+.88)%1,1,.62);halo.rotation.z+=dt*.45;halo.scale.setScalar(1+.12*Math.sin(tt*2.2));
-rings.forEach((r,i)=>{r.rotation.z+=dt*(.18+i*.012)*(i%2?1:-1);r.scale.setScalar(1+.09*Math.sin(tt*2+i*.7));r.material.color.setHSL((tt*.055+i/18)%1,1,.62)});
-floaters.forEach((o,i)=>{o.position.y=o.userData.b+Math.sin(tt*(1+o.userData.s)+o.userData.p)*.35;o.material.color.setHSL((tt*.06+o.userData.p/6.28)%1,1,.68)});
-movers.forEach((o,i)=>{o.rotation.x+=dt*(.2+(i%5)*.06);o.rotation.y+=dt*(.3+(i%7)*.04);let z=1+.12*Math.sin(tt*2+o.userData.p);o.scale.setScalar(z)});
-f.material.emissiveIntensity=1.4+.8*Math.sin(tt*2);R.toneMappingExposure=1.45+.18*Math.sin(tt*1.5)}
-else if(state!=='warp') R.toneMappingExposure=1.3;
-R.render(S,C)});
-</script><script>if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js'));</script></body></html>
+/* psychedelic world */
+const W=new T.Group();S.add(W);const floor=new T.Mesh(new T.PlaneGeometry(80,80),new T.MeshStandardMaterial({color:0x210035,emissive:0x2b0045,emissiveIntensity:1.4}));floor.rotation.x=-Math.PI/2;W.add(floor);
+const sky=new T.Mesh(new T.SphereGeometry(40,32,20),new T.MeshBasicMaterial({color:0x13002f,side:T.BackSide}));W.add(sky);
+const rings=[],particles=[],movers=[];
+for(let i=0;i<20;i++){let c=new T.Color().setHSL(i/20,1,.62),o=new T.Mesh(new T.TorusGeometry(2.7+.4*Math.sin(i),.06,8,48),new T.MeshBasicMaterial({color:c}));o.position.set(Math.sin(i)*.8,2.3,-4-i*1.5);o.rotation.z=i*.3;W.add(o);rings.push(o)}
+for(let i=0;i<280;i++){let c=new T.Color().setHSL(Math.random(),1,.68),o=new T.Mesh(new T.SphereGeometry(.025+Math.random()*.06,6,4),new T.MeshBasicMaterial({color:c}));o.position.set((Math.random()-.5)*34,.2+Math.random()*12,(Math.random()-.5)*38);o.userData={b:o.position.y,p:Math.random()*6.28};W.add(o);particles.push(o)}
+for(let i=0;i<35;i++){let c=new T.Color().setHSL(Math.random(),1,.58),o=new T.Mesh(new T.IcosahedronGeometry(.2+Math.random()*.45,1),new T.MeshBasicMaterial({color:c,wireframe:i%2===0}));o.position.set((Math.random()-.5)*16,.4+Math.random()*5,-2-Math.random()*28);o.userData={p:Math.random()*6.28};W.add(o);movers.push(o)}
+const sun=new T.Mesh(new T.SphereGeometry(2.2,24,16),new T.MeshBasicMaterial({color:0xff22cc}));sun.position.set(0,7,-28);W.add(sun);
+
+/* AR placement reticle and world anchor */
+const ret=new T.Mesh(new T.RingGeometry(.08,.14,32),new T.MeshBasicMaterial({color:0x22ffff,side:T.DoubleSide,depthTest:false}));ret.rotation.x=-Math.PI/2;ret.matrixAutoUpdate=false;ret.visible=false;S.add(ret);
+let ses=null,ref=null,hitSrc=null,lastHit=null,arPlaced=false;
+const ctrls=[0,1].map(i=>{let c=R.xr.getController(i);S.add(c);let l=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3(0,0,-1)]),new T.LineBasicMaterial({color:0xffffff}));l.scale.z=4;c.add(l);c.addEventListener('selectstart',()=>{if(ses&&lastHit&&!arPlaced)placeAR(lastHit)});return c});
+function placeAR(h){let p=h.getPose(ref);if(!p)return;let m=new T.Matrix4().fromArray(p.transform.matrix),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3();m.decompose(pos,q,sc);W.position.copy(pos);W.scale.setScalar(.28);W.visible=true;arPlaced=true;ret.visible=false;status.textContent='AR-Welt platziert – bewege dich real darum herum.'}
+
+/* desktop/mobile controls */
+let yaw=0,pitch=0,keys={},joyX=0,joyY=0,lastX=0,lastY=0,looking=false;
+addEventListener('keydown',e=>keys[e.code]=1);addEventListener('keyup',e=>keys[e.code]=0);
+R.domElement.addEventListener('click',()=>{if(!mobile&&!R.xr.isPresenting)R.domElement.requestPointerLock?.()});
+addEventListener('mousemove',e=>{if(document.pointerLockElement===R.domElement){yaw-=e.movementX*.0025;pitch=Math.max(-1.2,Math.min(1.2,pitch-e.movementY*.0025))}});
+const joy=$('#joy'),nub=$('#nub');function joyMove(e){let r=joy.getBoundingClientRect(),t=e.touches[0],x=t.clientX-(r.left+r.width/2),y=t.clientY-(r.top+r.height/2),d=Math.max(1,Math.hypot(x,y)),k=Math.min(42,d)/d;joyX=x*k/42;joyY=y*k/42;nub.style.transform=`translate(${x*k}px,${y*k}px)`}
+joy.addEventListener('touchstart',joyMove);joy.addEventListener('touchmove',joyMove);joy.addEventListener('touchend',()=>{joyX=joyY=0;nub.style.transform=''});
+const look=$('#look');look.addEventListener('touchstart',e=>{looking=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY});look.addEventListener('touchmove',e=>{if(!looking)return;let t=e.touches[0];yaw-=(t.clientX-lastX)*.006;pitch=Math.max(-1.2,Math.min(1.2,pitch-(t.clientY-lastY)*.006));lastX=t.clientX;lastY=t.clientY});look.addEventListener('touchend',()=>looking=false);
+
+async function capabilities(){let a=false,v=false;if(navigator.xr){a=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);v=await navigator.xr.isSessionSupported('immersive-vr').catch(()=>false)}arB.disabled=!a;vrB.disabled=!v;status.textContent=`${mobile?'Mobil':'Desktop/Headset'} · AR ${a?'✓':'–'} · VR ${v?'✓':'–'} · 3D ✓`}
+capabilities();
+$('#d').onclick=()=>{S.background=new T.Color(0x100018);W.visible=true;W.position.set(0,0,0);W.scale.setScalar(1);rig.position.set(0,0,0);C.position.set(0,1.65,4);status.textContent='3D-Modus · WASD/Maus bzw. Touch'};
+arB.onclick=async()=>{try{ses=await navigator.xr.requestSession('immersive-ar',{requiredFeatures:['hit-test'],optionalFeatures:['local-floor','anchors','plane-detection']});R.xr.setReferenceSpaceType('local-floor');await R.xr.setSession(ses);ref=await ses.requestReferenceSpace('local-floor').catch(()=>ses.requestReferenceSpace('local'));let viewer=await ses.requestReferenceSpace('viewer');hitSrc=await ses.requestHitTestSource({space:viewer});S.background=null;W.visible=false;arPlaced=false;status.textContent='AR/MR: Ring auf Boden ausrichten. Controller-Trigger oder Bildschirm antippen.';ses.addEventListener('end',()=>location.reload())}catch(e){status.textContent='AR nicht gestartet: '+e.message}};
+R.domElement.addEventListener('pointerdown',()=>{if(ses&&lastHit&&!arPlaced)placeAR(lastHit)});
+vrB.onclick=async()=>{try{ses=await navigator.xr.requestSession('immersive-vr',{optionalFeatures:['local-floor','bounded-floor']});R.xr.setReferenceSpaceType('local-floor');await R.xr.setSession(ses);S.background=new T.Color(0x100018);W.visible=true;W.position.set(0,0,0);W.scale.setScalar(1);status.textContent='VR aktiv';ses.addEventListener('end',()=>location.reload())}catch(e){status.textContent='VR nicht gestartet: '+e.message}};
+$('#fs').onclick=()=>document.documentElement.requestFullscreen?.();
+
+function resize(){if(R.xr.isPresenting)return;let w=innerWidth,h=innerHeight;R.setSize(w,h,false);C.aspect=w/h;C.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+let prev=performance.now();
+R.setAnimationLoop((t,frame)=>{let dt=Math.min(.04,(t-prev)/1000);prev=t;
+ if(frame&&ses&&hitSrc&&!arPlaced){let h=frame.getHitTestResults(hitSrc);lastHit=h[0]||null;if(lastHit){let p=lastHit.getPose(ref);if(p){ret.visible=true;ret.matrix.fromArray(p.transform.matrix)}}else ret.visible=false}
+ if(!R.xr.isPresenting){C.rotation.order='YXZ';C.rotation.y=yaw;C.rotation.x=pitch;let f=(keys.KeyW?1:0)-(keys.KeyS?1:0)-joyY,r=(keys.KeyD?1:0)-(keys.KeyA?1:0)+joyX;let sp=3*dt;rig.position.x+=(Math.sin(yaw)*f+Math.cos(yaw)*r)*sp;rig.position.z+=(-Math.cos(yaw)*f+Math.sin(yaw)*r)*sp}
+ let tt=t*.001;sky.material.color.setHSL((tt*.025)%1,.95,.09);sun.scale.setScalar(1+.18*Math.sin(tt*3));sun.material.color.setHSL((tt*.08+.88)%1,1,.62);
+ rings.forEach((o,i)=>{o.rotation.z+=dt*(.2+i*.01)*(i%2?1:-1);o.scale.setScalar(1+.1*Math.sin(tt*2+i));o.material.color.setHSL((tt*.06+i/20)%1,1,.62)});
+ particles.forEach(o=>{o.position.y=o.userData.b+Math.sin(tt*1.4+o.userData.p)*.28;o.material.color.setHSL((tt*.05+o.userData.p/6.28)%1,1,.68)});
+ movers.forEach((o,i)=>{o.rotation.x+=dt*(.2+i%4*.05);o.rotation.y+=dt*(.3+i%5*.05);o.scale.setScalar(1+.15*Math.sin(tt*2+o.userData.p))});
+ floor.material.emissiveIntensity=1.4+.7*Math.sin(tt*2);R.render(S,C)});
+if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script></body></html>
