@@ -9,7 +9,7 @@ const rig=new T.Group();rig.add(C);S.add(rig);C.position.set(0,1.65,3.5);
 
 /* portal + AR garden */
 const A=new T.Group();A.visible=false;S.add(A);const patch=new T.Mesh(new T.CircleGeometry(2.5,48),new T.MeshStandardMaterial({color:0x39aa58,transparent:true,opacity:.22,depthWrite:false}));patch.rotation.x=-Math.PI/2;A.add(patch);
-const P=new T.Group();P.position.set(0,1.15,-1.55);A.add(P);const rm=new T.MeshStandardMaterial({color:0xff1010,emissive:0xff0000,emissiveIntensity:9});const ring=new T.Mesh(new T.TorusGeometry(.82,.09,16,56),rm);P.add(ring);const entryHalo=new T.Mesh(new T.TorusGeometry(1.02,.035,10,64),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.9,depthTest:false}));P.add(entryHalo);P.add(new T.Mesh(new T.CircleGeometry(.73,48),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.28,side:T.DoubleSide})));
+const P=new T.Group();P.position.set(0,1.15,-1.55);P.visible=true;A.add(P);const rm=new T.MeshStandardMaterial({color:0xff1010,emissive:0xff0000,emissiveIntensity:9});const ring=new T.Mesh(new T.TorusGeometry(.82,.09,16,56),rm);P.add(ring);const entryHalo=new T.Mesh(new T.TorusGeometry(1.02,.035,10,64),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.9,depthTest:false}));P.add(entryHalo);P.add(new T.Mesh(new T.CircleGeometry(.73,48),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.28,side:T.DoubleSide})));
 for(let i=0;i<10;i++){let c=new T.Color().setHSL(i/10,1,.62),o=new T.Mesh(new T.SphereGeometry(.08+Math.random()*.07,9,6),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:2}));let a=i/10*Math.PI*2,d=1+Math.random();o.position.set(Math.cos(a)*d,.15+Math.random()*.6,Math.sin(a)*d);A.add(o)}
 
 /* psychedelic virtual garden */
@@ -53,46 +53,57 @@ const ret=new T.Mesh(new T.RingGeometry(.08,.14,32),new T.MeshBasicMaterial({col
 let arOK=false,vrOK=false,ses=null,ref=null,hitSrc=null,lastHit=null,placed=false,state='portal',armed=false,fallback=false,portalPhase='idle',placedAt=0,lastPortalZ=null,returnPhase='idle',returnZ=null,returnTarget='garden';
 const head=new T.Vector3(),pl=new T.Vector3();
 const ctrls=[0,1].map(i=>{let c=R.xr.getController(i);S.add(c);let l=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(),new T.Vector3(0,0,-1)]),new T.LineBasicMaterial({color:0xffffff}));l.scale.z=3;c.add(l);c.addEventListener('selectstart',()=>{if(lastHit&&!placed)place(lastHit)});return c});
-function place(h){let p=h.getPose(ref);if(!p)return;let m=new T.Matrix4().fromArray(p.transform.matrix),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3();m.decompose(pos,q,sc);A.position.copy(pos);C.getWorldPosition(head);A.rotation.set(0,Math.atan2(head.x-pos.x,head.z-pos.z),0);A.visible=true;placed=true;ret.visible=false;portalPhase='settling';placedAt=performance.now();lastPortalZ=null;armed=false;st.textContent='Portal platziert – bleibe kurz davor, dann gehe durch den Ring.'}
+function place(h){let p=h.getPose(ref);if(!p)return;let m=new T.Matrix4().fromArray(p.transform.matrix),pos=new T.Vector3(),q=new T.Quaternion(),sc=new T.Vector3();m.decompose(pos,q,sc);A.position.copy(pos);C.getWorldPosition(head);A.rotation.set(0,Math.atan2(head.x-pos.x,head.z-pos.z),0);A.visible=true;P.visible=true;V.visible=false;RP.visible=false;placed=true;ret.visible=false;portalPhase='settling';placedAt=performance.now();lastPortalZ=null;armed=false;st.textContent='Portal platziert – bleibe kurz davor, dann gehe durch den Ring.'}
 function portalCheck(){
  if(!placed||warping||state!=='portal')return;
  C.getWorldPosition(head);P.worldToLocal(pl.copy(head));
  const open=Math.abs(pl.x)<.78&&Math.abs(pl.y)<1.05;
- const now=performance.now();
+ const z=pl.z,now=performance.now();
 
- // Never allow a transition immediately after placement.
  if(portalPhase==='settling'){
-   rm.emissiveIntensity=5;
-   if(now-placedAt<1200){lastPortalZ=pl.z;return}
-   portalPhase='waitingFront';
-   st.textContent='Portal steht in AR/MR – gehe zunächst vor den leuchtenden Ring.';
+   rm.emissiveIntensity=9;
+   if(now-placedAt<1200){lastPortalZ=z;return}
+   portalPhase='waitingSide';
+   st.textContent='ROTES AR-PORTAL steht – nähere dich von einer beliebigen Seite.';
  }
 
- // Establish an unambiguous "front side" before arming.
- if(portalPhase==='waitingFront'){
-   if(pl.z>0.45 && pl.z<2.2){
-     portalPhase='armed';armed=true;lastPortalZ=pl.z;rm.emissiveIntensity=8;
-     st.textContent='Portal bereit – jetzt durch den Ring gehen.';
-   } else {
-     lastPortalZ=pl.z;return;
-   }
+ if(portalPhase==='waitingSide'){
+   // Arm from either side once the head is clearly away from the portal plane.
+   if(Math.abs(z)>.45&&Math.abs(z)<2.4){
+     portalPhase='armed';armed=true;lastPortalZ=z;rm.emissiveIntensity=14;
+     st.textContent='AR-Portal bereit – jetzt von dieser Seite durch den roten Ring gehen.';
+   } else {lastPortalZ=z;return}
  }
 
  if(portalPhase==='armed'){
-   // Must cross from clearly positive z to clearly negative z while inside aperture.
-   const crossed = lastPortalZ!==null && lastPortalZ>0.10 && pl.z<-0.10;
-   if(open && crossed){
-     portalPhase='crossed';armed=false;beginWarp('garden');lastPortalZ=pl.z;return;
+   // Trigger only on a genuine sign change across the portal plane while
+   // the user's head is inside the aperture.
+   const crossed=lastPortalZ!==null &&
+     ((lastPortalZ>.10&&z<-.10)||(lastPortalZ<-.10&&z>.10));
+   if(open&&crossed){
+     portalPhase='crossed';armed=false;beginWarp('garden');lastPortalZ=z;return;
    }
-   // Keep tracking; walking around the side must not trigger.
-   if(pl.z>0.10) lastPortalZ=pl.z;
-   if(Math.abs(pl.x)>1.4 || Math.abs(pl.y)>1.5){
-     // user is outside portal aperture; still armed, but no crossing is accepted
-     rm.emissiveIntensity=6;
-   } else rm.emissiveIntensity=9;
+   if(Math.abs(z)>.10)lastPortalZ=z;
+   rm.emissiveIntensity=open?15:11;
  }
-}function beginWarp(target='garden'){armed=false;warping=true;wt=0;warp.visible=true;state='warp';returnTarget=target;st.textContent=target==='garden'?'WARP → psychedelischer Garten':'WARP → AR/MR Welt'}
-function updateWarp(dt,t){if(!warping)return;wt+=dt;let u=Math.min(1,wt/1.8);C.getWorldPosition(head);warp.position.copy(head);warp.quaternion.copy(C.quaternion);shell.material.opacity=Math.sin(Math.PI*u)*.95;shell.material.color.setHSL((t*.0003)%1,1,.2);streaks.forEach(o=>{o.position.z+=dt*o.userData.sp*(1+u*8);if(o.position.z>1)o.position.z=-5;o.scale.y=1+u*5;o.material.color.setHSL((t*.0004+o.userData.h)%1,1,.7)});if(u>.48&&!warp.userData.sw){warp.userData.sw=1;if(returnTarget==='garden'){V.visible=true;patch.visible=false;S.background=new T.Color(0x100018)}else{V.visible=false;patch.visible=true;S.background=ses?null:new T.Color(0x87bde8)}}if(u>=1){warping=false;warp.visible=false;warp.userData.sw=0;if(returnTarget==='garden'){state='garden';returnPhase='settling';returnZ=null;R.toneMappingExposure=1.55;st.textContent=`Psychedelischer Garten – rotes Rückportal in ${portalDistance.toFixed(1)} m Abstand.`}else{state='portal';portalPhase='settling';placedAt=performance.now();lastPortalZ=null;R.toneMappingExposure=1.35;st.textContent='Zurück in AR/MR – Portal bleibt vor dir sichtbar.'}}}
+}
+function beginWarp(target='garden'){armed=false;warping=true;wt=0;warp.visible=true;state='warp';returnTarget=target;st.textContent=target==='garden'?'WARP → psychedelischer Garten':'WARP → AR/MR Welt'}
+function updateWarp(dt,t){if(!warping)return;wt+=dt;let u=Math.min(1,wt/1.8);C.getWorldPosition(head);warp.position.copy(head);warp.quaternion.copy(C.quaternion);shell.material.opacity=Math.sin(Math.PI*u)*.95;shell.material.color.setHSL((t*.0003)%1,1,.2);streaks.forEach(o=>{o.position.z+=dt*o.userData.sp*(1+u*8);if(o.position.z>1)o.position.z=-5;o.scale.y=1+u*5;o.material.color.setHSL((t*.0004+o.userData.h)%1,1,.7)});if(u>.48&&!warp.userData.sw){
+ warp.userData.sw=1;
+ if(returnTarget==='garden'){
+   P.visible=false;      // entry portal must not exist visually in VR
+   V.visible=true;       // contains only the VR return portal
+   RP.visible=true;
+   patch.visible=false;
+   S.background=new T.Color(0x100018);
+ }else{
+   RP.visible=false;     // return portal must not exist visually in AR/MR
+   V.visible=false;
+   P.visible=true;       // only entry portal visible again
+   patch.visible=true;
+   S.background=ses?null:new T.Color(0x87bde8);
+ }
+}if(u>=1){warping=false;warp.visible=false;warp.userData.sw=0;if(returnTarget==='garden'){state='garden';returnPhase='settling';returnZ=null;P.visible=false;RP.visible=true;R.toneMappingExposure=1.55;st.textContent=`Psychedelischer Garten – rotes Rückportal in ${portalDistance.toFixed(1)} m Abstand.`}else{state='portal';portalPhase='settling';placedAt=performance.now();lastPortalZ=null;armed=false;P.visible=true;RP.visible=false;R.toneMappingExposure=1.35;st.textContent='Zurück in AR/MR – Portal bleibt vor dir sichtbar.'}}}
 
 
 function returnPortalCheck(){
@@ -125,7 +136,7 @@ function returnPortalCheck(){
  }
 }
 /* desktop/mobile fallback portal */
-function fallbackStart(){fallback=true;S.background=new T.Color(0x87bde8);A.visible=true;A.position.set(0,0,0);A.rotation.set(0,0,0);placed=true;portalPhase='settling';placedAt=performance.now();lastPortalZ=null;rig.position.set(0,0,3.5);C.position.set(0,1.65,0);st.textContent='3D-Portal-Fallback – nähere dich erst dem Portal und gehe dann hindurch.'}
+function fallbackStart(){fallback=true;S.background=new T.Color(0x87bde8);A.visible=true;P.visible=true;V.visible=false;RP.visible=false;A.position.set(0,0,0);A.rotation.set(0,0,0);placed=true;portalPhase='settling';placedAt=performance.now();lastPortalZ=null;rig.position.set(0,0,3.5);C.position.set(0,1.65,0);st.textContent='3D-Portal-Fallback – nähere dich erst dem Portal und gehe dann hindurch.'}
 
 /* capability-first start */
 async function caps(){if(navigator.xr){arOK=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);vrOK=await navigator.xr.isSessionSupported('immersive-vr').catch(()=>false)}st.textContent=`AR/MR ${arOK?'✓':'–'} · VR ${vrOK?'✓':'–'} · 3D ✓`;start.textContent=arOK?'AR/MR Portal starten':'3D Portal starten'}

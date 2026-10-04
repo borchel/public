@@ -1,9 +1,17 @@
-# Psychedelic Portal Garden v10
+# Psychedelic Portal Garden v11
 
-Neu:
-- Startseitenparameter `Portalabstand VR`
-- Default: 1.0 Meter
-- Einstellbereich: 0.5 bis 20 Meter, Schrittweite 0.1 Meter
-- Der Wert wird beim Start übernommen und anschließend gesperrt.
-- Das rote Rückportal wird entsprechend relativ zum Eingangsportal in der virtuellen Gartenwelt positioniert.
-- AR->VR und VR->AR nutzen weiterhin die robuste Portalquerungslogik aus v9.
+## Sichtbarkeit
+- AR/MR: ausschließlich das rote Eingangsportal ist sichtbar.
+- VR-Garten: ausschließlich das rote Ausgangs-/Rückportal ist sichtbar.
+- Beim Warp werden die Portale explizit umgeschaltet.
+
+## Bidirektionale Portalnutzung
+Beide Portale können von beiden Seiten durchschritten werden.
+Die Erkennung:
+1. Nutzer muss sich mindestens 0,45 m auf einer beliebigen Seite der Portalebene befinden.
+2. Portal wird für genau diese Annäherung aktiviert.
+3. Kopf/Kamera muss innerhalb der Ringöffnung sein.
+4. Lokale Z-Position muss die Portalebene mit einer ±0,10-m-Totzone vollständig kreuzen.
+5. Erst dann wird der Warp ausgelöst.
+
+Der Portalabstand aus v10 bleibt konfigurierbar, Default 1,0 m.
