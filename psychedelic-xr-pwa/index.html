@@ -9,7 +9,7 @@ const rig=new T.Group();rig.add(C);S.add(rig);C.position.set(0,1.65,3.5);
 
 /* portal + AR garden */
 const A=new T.Group();A.visible=false;S.add(A);const patch=new T.Mesh(new T.CircleGeometry(2.5,48),new T.MeshStandardMaterial({color:0x39aa58,transparent:true,opacity:.22,depthWrite:false}));patch.rotation.x=-Math.PI/2;A.add(patch);
-const P=new T.Group();P.position.set(0,1.15,-1.55);A.add(P);const rm=new T.MeshStandardMaterial({color:0x55ddff,emissive:0x22bbff,emissiveIntensity:5});const ring=new T.Mesh(new T.TorusGeometry(.82,.09,16,56),rm);P.add(ring);P.add(new T.Mesh(new T.CircleGeometry(.73,48),new T.MeshBasicMaterial({color:0x8b3cff,transparent:true,opacity:.38,side:T.DoubleSide})));
+const P=new T.Group();P.position.set(0,1.15,-1.55);A.add(P);const rm=new T.MeshStandardMaterial({color:0xff1010,emissive:0xff0000,emissiveIntensity:9});const ring=new T.Mesh(new T.TorusGeometry(.82,.09,16,56),rm);P.add(ring);const entryHalo=new T.Mesh(new T.TorusGeometry(1.02,.035,10,64),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.9,depthTest:false}));P.add(entryHalo);P.add(new T.Mesh(new T.CircleGeometry(.73,48),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.28,side:T.DoubleSide})));
 for(let i=0;i<10;i++){let c=new T.Color().setHSL(i/10,1,.62),o=new T.Mesh(new T.SphereGeometry(.08+Math.random()*.07,9,6),new T.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:2}));let a=i/10*Math.PI*2,d=1+Math.random();o.position.set(Math.cos(a)*d,.15+Math.random()*.6,Math.sin(a)*d);A.add(o)}
 
 /* psychedelic virtual garden */
@@ -32,9 +32,9 @@ for(let i=0;i<24;i++){let x=(Math.random()-.5)*25,z=-3-Math.random()*30;addLeafP
 
 /* return portal, visible only in virtual garden */
 const RP=new T.Group();RP.position.set(0,1.15,-7);V.add(RP);
-const rrm=new T.MeshStandardMaterial({color:0xff48e8,emissive:0xff16d8,emissiveIntensity:6});
-const rring=new T.Mesh(new T.TorusGeometry(.9,.1,16,56),rrm);RP.add(rring);
-const rdisc=new T.Mesh(new T.CircleGeometry(.79,48),new T.MeshBasicMaterial({color:0x35d9ff,transparent:true,opacity:.42,side:T.DoubleSide}));RP.add(rdisc);
+const rrm=new T.MeshStandardMaterial({color:0xff1010,emissive:0xff0000,emissiveIntensity:10});
+const rring=new T.Mesh(new T.TorusGeometry(.9,.1,16,56),rrm);RP.add(rring);const returnHalo=new T.Mesh(new T.TorusGeometry(1.12,.04,10,64),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.95,depthTest:false}));RP.add(returnHalo);
+const rdisc=new T.Mesh(new T.CircleGeometry(.79,48),new T.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:.30,side:T.DoubleSide}));RP.add(rdisc);
 
 
 /* warp */
@@ -91,16 +91,30 @@ function updateWarp(dt,t){if(!warping)return;wt+=dt;let u=Math.min(1,wt/1.8);C.g
 function returnPortalCheck(){
  if(state!=='garden'||warping)return;
  C.getWorldPosition(head);RP.worldToLocal(pl.copy(head));
- const open=Math.abs(pl.x)<.86&&Math.abs(pl.y)<1.12;
+ const open=Math.abs(pl.x)<.88&&Math.abs(pl.y)<1.15;
+ const z=pl.z;
+
  if(returnPhase==='settling'){
-   if(pl.z>0.5&&pl.z<2.4){returnPhase='armed';returnZ=pl.z;rrm.emissiveIntensity=10;st.textContent='Rückportal bereit – gehe hindurch zurück in AR/MR.'}
-   else {returnZ=pl.z;return}
+   // Arm from EITHER side. This avoids assumptions about the portal's
+   // local front direction after world placement/rotation.
+   if(Math.abs(z)>.48 && Math.abs(z)<2.6){
+     returnPhase='armed';returnZ=z;rrm.emissiveIntensity=14;
+     st.textContent='ROTES RÜCKPORTAL bereit – jetzt durch den roten Ring gehen.';
+   } else {returnZ=z;return}
  }
+
  if(returnPhase==='armed'){
-   const crossed=returnZ!==null&&returnZ>0.1&&pl.z<-.1;
-   if(open&&crossed){returnPhase='crossed';beginWarp('ar');returnZ=pl.z;return}
-   if(pl.z>0.1)returnZ=pl.z;
-   rrm.emissiveIntensity=open?11:7;
+   // A real crossing means the sign of local Z changes while the head
+   // is physically inside the portal aperture. A small dead-zone
+   // prevents jitter around the plane from triggering it.
+   const crossed=returnZ!==null &&
+     ((returnZ>.10 && z<-.10)||(returnZ<-.10 && z>.10));
+   if(open&&crossed){
+     returnPhase='crossed';beginWarp('ar');returnZ=z;return;
+   }
+   // Preserve the last position only while clearly away from the plane.
+   if(Math.abs(z)>.10)returnZ=z;
+   rrm.emissiveIntensity=open?15:11;
  }
 }
 /* desktop/mobile fallback portal */
@@ -120,7 +134,9 @@ const look=$('#look');look.addEventListener('touchstart',e=>{lx=e.touches[0].cli
 function resize(){if(R.xr.isPresenting)return;R.setSize(innerWidth,innerHeight,false);C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix()}addEventListener('resize',resize);resize();let last=performance.now();
 R.setAnimationLoop((t,frame)=>{let dt=Math.min(.04,(t-last)/1000);last=t;if(frame&&ses&&hitSrc&&!placed){let h=frame.getHitTestResults(hitSrc);lastHit=h[0]||null;if(lastHit){let p=lastHit.getPose(ref);if(p){ret.visible=true;ret.matrix.fromArray(p.transform.matrix)}}else ret.visible=false}
 if(!R.xr.isPresenting&&fallback){C.rotation.order='YXZ';C.rotation.y=yaw;C.rotation.x=pitch;let f=(keys.KeyW?1:0)-(keys.KeyS?1:0)-jy,r=(keys.KeyD?1:0)-(keys.KeyA?1:0)+jx,sp=2.7*dt;rig.position.x+=(Math.sin(yaw)*f+Math.cos(yaw)*r)*sp;rig.position.z+=(-Math.cos(yaw)*f+Math.sin(yaw)*r)*sp}
-portalCheck();returnPortalCheck();updateWarp(dt,t);ring.rotation.z+=dt*.8;rring.rotation.z-=dt*.9;if(state==='garden'){let tt=t*.001;sky.material.color.setHSL((tt*.025)%1,.95,.09);sun.scale.setScalar(1+.2*Math.sin(tt*3));sun.material.color.setHSL((tt*.08+.88)%1,1,.62);rings.forEach((o,i)=>{o.rotation.z+=dt*(.2+i*.01)*(i%2?1:-1);o.scale.setScalar(1+.1*Math.sin(tt*2+i));o.material.color.setHSL((tt*.06+i/20)%1,1,.63)});pts.forEach(o=>{o.position.y=o.userData.b+Math.sin(tt*1.5+o.userData.p)*.3;o.material.color.setHSL((tt*.05+o.userData.p/6.28)%1,1,.7)});moves.forEach((o,i)=>{o.rotation.x+=dt*(.2+i%4*.05);o.rotation.y+=dt*(.3+i%5*.05);o.scale.setScalar(1+.15*Math.sin(tt*2+o.userData.p))});vegetation.forEach((g,i)=>{let w=1+.08*Math.sin(tt*2.2+g.userData.p);g.scale.set(w,1+.12*Math.sin(tt*1.7+g.userData.p),w);g.rotation.y+=dt*(g.userData.k==='f'?.12:.035);g.children.forEach((m,j)=>{if(m.material&&m.material.userData&&m.material.userData.h!==undefined){m.material.color.setHSL((m.material.userData.h+tt*.035+j*.006)%1,1,.58);m.material.emissive.copy(m.material.color);m.material.emissiveIntensity=1.5+.9*Math.sin(tt*2+g.userData.p+j)}})});rdisc.material.color.setHSL((tt*.12)%1,1,.6);floor.material.emissiveIntensity=1.5+.8*Math.sin(tt*2)}
+portalCheck();returnPortalCheck();updateWarp(dt,t);ring.rotation.z+=dt*.8;rring.rotation.z-=dt*.9;
+let pulse=1+.10*Math.sin(t*.006);entryHalo.scale.setScalar(pulse);returnHalo.scale.setScalar(pulse);
+entryHalo.material.opacity=.65+.3*(.5+.5*Math.sin(t*.008));returnHalo.material.opacity=.7+.28*(.5+.5*Math.sin(t*.008));if(state==='garden'){let tt=t*.001;sky.material.color.setHSL((tt*.025)%1,.95,.09);sun.scale.setScalar(1+.2*Math.sin(tt*3));sun.material.color.setHSL((tt*.08+.88)%1,1,.62);rings.forEach((o,i)=>{o.rotation.z+=dt*(.2+i*.01)*(i%2?1:-1);o.scale.setScalar(1+.1*Math.sin(tt*2+i));o.material.color.setHSL((tt*.06+i/20)%1,1,.63)});pts.forEach(o=>{o.position.y=o.userData.b+Math.sin(tt*1.5+o.userData.p)*.3;o.material.color.setHSL((tt*.05+o.userData.p/6.28)%1,1,.7)});moves.forEach((o,i)=>{o.rotation.x+=dt*(.2+i%4*.05);o.rotation.y+=dt*(.3+i%5*.05);o.scale.setScalar(1+.15*Math.sin(tt*2+o.userData.p))});vegetation.forEach((g,i)=>{let w=1+.08*Math.sin(tt*2.2+g.userData.p);g.scale.set(w,1+.12*Math.sin(tt*1.7+g.userData.p),w);g.rotation.y+=dt*(g.userData.k==='f'?.12:.035);g.children.forEach((m,j)=>{if(m.material&&m.material.userData&&m.material.userData.h!==undefined){m.material.color.setHSL((m.material.userData.h+tt*.035+j*.006)%1,1,.58);m.material.emissive.copy(m.material.color);m.material.emissiveIntensity=1.5+.9*Math.sin(tt*2+g.userData.p+j)}})});rdisc.material.color.setRGB(1,0,0);floor.material.emissiveIntensity=1.5+.8*Math.sin(tt*2)}
 R.render(S,C)});
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script></body></html>
