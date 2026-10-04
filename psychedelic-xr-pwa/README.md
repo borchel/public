@@ -1,10 +1,13 @@
-# Psychedelic Universal XR PWA
-Eine adaptive PWA für Desktop, Mobilgeräte und WebXR-Headsets.
+# Psychedelic Portal Garden v6
+Einheitlicher Ablauf:
+1. Wenn `immersive-ar` verfügbar: AR/MR starten, Portal real platzieren.
+2. Durch das Portal gehen.
+3. Automatischer Warp.
+4. Psychedelischer Garten wird innerhalb derselben XR-Session vollständig virtuell dargestellt.
+5. Ohne AR: Desktop/Mobil-3D-Fallback mit demselben Portalablauf.
 
-- Desktop: 3D mit WASD + Maus
-- Mobil: 3D mit Touch-Joystick + Touch-Look; AR falls `immersive-ar` verfügbar
-- Quest/XR-Headset: AR/MR falls verfügbar; VR falls verfügbar; Controller-Trigger zur AR-Platzierung
-- Die Buttons werden über `navigator.xr.isSessionSupported()` automatisch aktiviert/deaktiviert.
+Warum dieselbe AR-Session? Browser erlauben nicht zuverlässig einen automatischen Wechsel von `immersive-ar` zu `immersive-vr` ohne neue Benutzeraktivierung. Das visuelle Ergebnis wird daher in AR-fähigen Geräten als vollständig virtuelle Szene innerhalb der laufenden Session erzeugt.
 
-GitHub Pages: gesamten Ordner in Repository-Root hochladen und Pages für `main / root` aktivieren.
-Hinweis: Three.js wird in dieser Fassung noch von jsDelivr geladen.
+
+## v7 Portal-Fix
+Nach Platzierung 1,2 s Sperrzeit. Der Nutzer muss danach zuerst eindeutig auf der Vorderseite (z > 0,45 m) erkannt werden. Warp startet nur bei echter Querung der Portalebene innerhalb der Öffnung.

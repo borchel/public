@@ -1,12 +1,11 @@
 {
-  "name": "Psychedelic Universal XR",
-  "short_name": "Psy XR",
+  "name": "Psychedelic Portal Garden",
+  "short_name": "Portal Garden",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#090510",
-  "theme_color": "#12001f",
-  "orientation": "any",
+  "theme_color": "#100018",
   "icons": [
     {
       "src": "./icons/icon-192.png",
