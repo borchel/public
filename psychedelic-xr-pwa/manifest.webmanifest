@@ -1,11 +1,12 @@
 {
-  "name": "Psychedelic Portal Garden",
+  "name": "Psychedelic Portal Garden v12",
   "short_name": "Portal Garden",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#090510",
   "theme_color": "#100018",
+  "orientation": "any",
   "icons": [
     {
       "src": "./icons/icon-192.png",
