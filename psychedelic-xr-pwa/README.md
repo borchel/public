@@ -1,14 +1,9 @@
-# Psychedelic Portal Garden v9
+# Psychedelic Portal Garden v10
 
-## Portal visibility
-Both entry and return portals use a strong red emissive ring plus a larger pulsing red halo.
-
-## VR -> AR return fix
-The previous return detector assumed one specific local Z direction. Depending on placement/orientation, the user could approach the VR return portal from the opposite local side, so it never armed/crossed correctly.
-
-v9 arms the return portal from either side and triggers only when:
-1. the head was clearly at least 0.48 m from the portal plane,
-2. the head is inside the portal aperture,
-3. local Z actually changes sign across a ±0.10 m dead-zone.
-
-The warp then hides the virtual garden and restores the transparent AR/MR background.
+Neu:
+- Startseitenparameter `Portalabstand VR`
+- Default: 1.0 Meter
+- Einstellbereich: 0.5 bis 20 Meter, Schrittweite 0.1 Meter
+- Der Wert wird beim Start übernommen und anschließend gesperrt.
+- Das rote Rückportal wird entsprechend relativ zum Eingangsportal in der virtuellen Gartenwelt positioniert.
+- AR->VR und VR->AR nutzen weiterhin die robuste Portalquerungslogik aus v9.
