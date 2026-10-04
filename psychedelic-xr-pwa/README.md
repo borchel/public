@@ -1,14 +1,13 @@
-# Psychedelic Portal Garden v13
+# Psychedelic Portal Garden — v14
 
-## Neue Audio-Engine
-- native Web Audio API, keine zusätzliche Runtime
-- generativer 108-BPM-Soundtrack
-- Drone in AR/MR
-- Kick, Bass, Hi-Hat/Noise und Arpeggio im VR-Garten
-- Delay/Feedback für psychedelische Räumlichkeit
-- Portal-Sweep beim Warp
-- Pflanzen erzeugen bei Nähe zusätzliche Pluck-Töne
-- Master-Clock beeinflusst gleichzeitig Boden/Pflanzen und Musik
-- Sound an/aus und Lautstärke auf der Startseite
-
-Die Architektur ist bewusst klein und später Strudel-kompatibel: visuelle Events und musikalische Pattern sind getrennt.
+Änderungen:
+- Versionsnummer direkt sichtbar auf der Startseite.
+- Lauterer, organischerer generativer Sound.
+- 112 BPM, kräftigere Kick/Bass-Sektion.
+- Verzerrte, gefilterte Gitarren-artige Synth-Stimmen.
+- Organ-artige Layer, Toms, stärkere Noise/Hi-Hat-Akzente.
+- Mehr Delay/Feedback für Psychedelic-Rock-Charakter.
+- Großflächigere, langsamere Muster im fraktalen Himmel.
+- Kräftigere, kontrastreichere Objektfarben.
+- Stärkere Biolumineszenz und ausgeprägtere Morphing-Bewegungen.
+- Portal-, Interaktions- und Distanzlogik aus v13 bleibt erhalten.
