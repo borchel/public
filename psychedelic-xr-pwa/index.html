@@ -1,8 +1,70 @@
 <!doctype html><html lang=de><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Psychedelic Portal Garden</title><link rel=manifest href=./manifest.webmanifest><meta name=theme-color content=#100018>
 <style>*{box-sizing:border-box}body{margin:0;background:#090510;color:#fff;font:14px system-ui;overflow:hidden}#bar{position:fixed;z-index:20;inset:0 0 auto 0;padding:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:#090510cc}input{width:72px;padding:8px;border-radius:8px;border:1px solid #675b7a;background:#181221;color:#fff}label{display:flex;align-items:center;gap:6px}button{padding:9px 12px;border:1px solid #675b7a;border-radius:9px;background:#087e75;color:#fff}#view{width:100vw;height:100vh}#st{color:#ddd}#joy{display:none;position:fixed;z-index:15;bottom:22px;left:22px;width:115px;height:115px;border:2px solid #ffffff55;border-radius:50%;touch-action:none}#nub{position:absolute;left:40px;top:40px;width:32px;height:32px;border-radius:50%;background:#ffffff99}#look{display:none;position:fixed;z-index:14;right:0;bottom:0;width:52vw;height:65vh;touch-action:none}.mobile #joy,.mobile #look{display:block}</style></head>
-<body><div id=bar><b>Psychedelic Portal</b><label>Portalabstand VR <input id=portalDistance type=number min=0.5 max=20 step=0.1 value=1.0> m</label><button id=start>Start</button><span id=st>Prüfe Gerät…</span></div><div id=view></div><div id=joy><div id=nub></div></div><div id=look></div>
+<body><div id=bar><b>Psychedelic Portal</b><label>Portalabstand VR <input id=portalDistance type=number min=0.5 max=20 step=0.1 value=1.0> m</label><label>Sound <input id=soundEnabled type=checkbox checked></label><label>Lautstärke <input id=volume type=range min=0 max=1 step=.05 value=.55></label><button id=start>Start</button><span id=st>Prüfe Gerät…</span></div><div id=view></div><div id=joy><div id=nub></div></div><div id=look></div>
 <script type=module>
 const T=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm'),$=q=>document.querySelector(q),st=$('#st'),start=$('#start'),view=$('#view'),portalDistanceInput=$('#portalDistance');let portalDistance=1.0;
+const soundEnabled=$('#soundEnabled'),volume=$('#volume');
+class GardenAudio{
+ constructor(){this.ctx=null;this.master=null;this.music=null;this.fx=null;this.delay=null;this.feedback=null;this.started=false;this.next=0;this.step=0;this.bpm=108;this.look=0.12;this.timer=null;this.mode='ar';this.lastPlant=0}
+ async init(){
+  if(this.started)return;
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+  this.ctx=new AC();await this.ctx.resume();
+  this.master=this.ctx.createGain();this.master.gain.value=+volume.value;
+  this.music=this.ctx.createGain();this.music.gain.value=.18;
+  this.fx=this.ctx.createGain();this.fx.gain.value=.55;
+  this.delay=this.ctx.createDelay(1.5);this.delay.delayTime.value=.33;
+  this.feedback=this.ctx.createGain();this.feedback.gain.value=.38;
+  this.delay.connect(this.feedback);this.feedback.connect(this.delay);
+  this.music.connect(this.delay);this.delay.connect(this.master);this.music.connect(this.master);this.fx.connect(this.master);this.master.connect(this.ctx.destination);
+  this.started=true;this.next=this.ctx.currentTime+.08;this.timer=setInterval(()=>this.schedule(),35);this.drone();
+ }
+ setVolume(v){if(this.master)this.master.gain.setTargetAtTime(v,this.ctx.currentTime,.04)}
+ osc(freq,t,dur,type='sine',gain=.1,dest=this.music,slide=0){
+  if(!this.ctx||!soundEnabled.checked)return;
+  let o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type=type;o.frequency.setValueAtTime(freq,t);if(slide)o.frequency.exponentialRampToValueAtTime(Math.max(20,freq*slide),t+dur);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(gain,t+.015);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+  o.connect(g);g.connect(dest);o.start(t);o.stop(t+dur+.03)
+ }
+ noise(t,dur=.08,gain=.05){
+  if(!this.ctx||!soundEnabled.checked)return;
+  let n=Math.ceil(this.ctx.sampleRate*dur),b=this.ctx.createBuffer(1,n,this.ctx.sampleRate),a=b.getChannelData(0);for(let i=0;i<n;i++)a[i]=Math.random()*2-1;
+  let src=this.ctx.createBufferSource(),f=this.ctx.createBiquadFilter(),g=this.ctx.createGain();src.buffer=b;f.type='highpass';f.frequency.value=5000;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);src.connect(f);f.connect(g);g.connect(this.music);src.start(t)
+ }
+ kick(t){if(this.mode!=='garden')return;this.osc(125,t,.18,'sine',.34,this.music,.28)}
+ bass(t,n){if(this.mode!=='garden')return;let notes=[55,65.41,73.42,82.41];this.osc(notes[n%4],t,.3,'sawtooth',.055)}
+ pluck(t,n,g=.035){let scale=[261.63,311.13,392,466.16,523.25,622.25,783.99];this.osc(scale[n%scale.length],t,.18,'triangle',g)}
+ schedule(){
+  if(!this.ctx||!soundEnabled.checked)return;
+  let spb=60/this.bpm/4;
+  while(this.next<this.ctx.currentTime+this.look){
+   let s=this.step%16;
+   if(s%4===0)this.kick(this.next);
+   if(s===2||s===6||s===10||s===14)this.noise(this.next,.045,this.mode==='garden'?.025:.006);
+   if(s%2===0)this.bass(this.next,Math.floor(this.step/8));
+   if(this.mode==='garden'&&(s===1||s===5||s===9||s===13))this.pluck(this.next,(this.step*3)%7,.028);
+   this.step++;this.next+=spb;
+  }
+ }
+ drone(){
+  if(!this.ctx)return;let t=this.ctx.currentTime;
+  this.osc(55,t,28,'sine',.025,this.music,1.01);this.osc(82.41,t,28,'sine',.018,this.music,.99);
+  setTimeout(()=>{if(this.started)this.drone()},25000)
+ }
+ portal(){
+  if(!this.ctx)return;let t=this.ctx.currentTime;
+  this.osc(90,t,1.65,'sawtooth',.09,this.fx,8);this.osc(900,t+.05,1.5,'sine',.055,this.fx,.12)
+ }
+ enterGarden(){this.mode='garden';if(this.music)this.music.gain.setTargetAtTime(.42,this.ctx.currentTime,.35);this.portal()}
+ enterAR(){this.mode='ar';if(this.music)this.music.gain.setTargetAtTime(.12,this.ctx.currentTime,.35);this.portal()}
+ plant(intensity=.5,kind='p'){
+  if(!this.ctx||this.mode!=='garden'||performance.now()-this.lastPlant<180)return;
+  this.lastPlant=performance.now();let idx=kind==='f'?5:kind==='m'?1:3;this.pluck(this.ctx.currentTime+.01,idx,.018+.045*intensity)
+ }
+ pulse(){return this.started?((this.step%16)/16):0}
+}
+const audio=new GardenAudio();volume.oninput=()=>audio.setVolume(+volume.value);
+
 const mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);if(mobile)document.body.classList.add('mobile');
 const S=new T.Scene(),C=new T.PerspectiveCamera(70,1,.03,120),R=new T.WebGLRenderer({alpha:true,antialias:true});R.xr.enabled=true;R.setPixelRatio(Math.min(devicePixelRatio,2));R.outputColorSpace=T.SRGBColorSpace;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.35;view.append(R.domElement);S.add(new T.HemisphereLight(0xffffff,0x332255,3));
 const rig=new T.Group();rig.add(C);S.add(rig);C.position.set(0,1.65,3.5);
@@ -114,7 +176,7 @@ function updateWarp(dt,t){if(!warping)return;wt+=dt;let u=Math.min(1,wt/1.8);C.g
    patch.visible=true;
    S.background=ses?null:new T.Color(0x87bde8);
  }
-}if(u>=1){warping=false;warp.visible=false;warp.userData.sw=0;if(returnTarget==='garden'){state='garden';returnPhase='settling';returnZ=null;P.visible=false;RP.visible=true;gardenReveal=0;gardenRevealActive=true;R.toneMappingExposure=1.55;st.textContent=`Psychedelischer Garten – rotes Rückportal in ${portalDistance.toFixed(1)} m Abstand.`}else{state='portal';portalPhase='settling';placedAt=performance.now();lastPortalZ=null;armed=false;P.visible=true;RP.visible=false;R.toneMappingExposure=1.35;st.textContent='Zurück in AR/MR – Portal bleibt vor dir sichtbar.'}}}
+}if(u>=1){warping=false;warp.visible=false;warp.userData.sw=0;if(returnTarget==='garden'){state='garden';returnPhase='settling';returnZ=null;P.visible=false;RP.visible=true;gardenReveal=0;gardenRevealActive=true;R.toneMappingExposure=1.55;audio.enterGarden();st.textContent=`Psychedelischer Garten – rotes Rückportal in ${portalDistance.toFixed(1)} m Abstand.`}else{state='portal';portalPhase='settling';placedAt=performance.now();lastPortalZ=null;armed=false;P.visible=true;RP.visible=false;R.toneMappingExposure=1.35;audio.enterAR();st.textContent='Zurück in AR/MR – Portal bleibt vor dir sichtbar.'}}}
 
 
 function returnPortalCheck(){
@@ -153,6 +215,7 @@ function fallbackStart(){fallback=true;S.background=new T.Color(0x87bde8);A.visi
 async function caps(){if(navigator.xr){arOK=await navigator.xr.isSessionSupported('immersive-ar').catch(()=>false);vrOK=await navigator.xr.isSessionSupported('immersive-vr').catch(()=>false)}st.textContent=`AR/MR ${arOK?'✓':'–'} · VR ${vrOK?'✓':'–'} · 3D ✓`;start.textContent=arOK?'AR/MR Portal starten':'3D Portal starten'}
 caps();
 start.onclick=async()=>{
+ if(soundEnabled.checked)await audio.init();
  portalDistance=Math.max(.5,Math.min(20,parseFloat(portalDistanceInput.value)||1));
  portalDistanceInput.value=portalDistance.toFixed(1);
  portalDistanceInput.disabled=true;
@@ -174,7 +237,7 @@ portalCheck();returnPortalCheck();updateWarp(dt,t);ring.rotation.z+=dt*.8;rring.
 let pulse=1+.10*Math.sin(t*.006);entryHalo.scale.setScalar(pulse);returnHalo.scale.setScalar(pulse);
 entryHalo.material.opacity=.65+.3*(.5+.5*Math.sin(t*.008));returnHalo.material.opacity=.7+.28*(.5+.5*Math.sin(t*.008));if(state==='garden'){let tt=t*.001;
  floorMat.uniforms.uTime.value=tt;skyMat.uniforms.uTime.value=tt;sporeMat.uniforms.uTime.value=tt;energyMat.uniforms.uTime.value=tt;energyMat.uniforms.uDist.value=Math.max(.5,portalDistance);
- if(gardenRevealActive){gardenReveal=Math.min(1,gardenReveal+dt/2.5);let boom=Math.sin(gardenReveal*Math.PI);R.toneMappingExposure=1.55+boom*1.35;floorMat.uniforms.uWave.value=boom;if(gardenReveal>=1){gardenRevealActive=false;R.toneMappingExposure=1.55}}else floorMat.uniforms.uWave.value=.12+.12*Math.sin(tt*1.3);
+ if(gardenRevealActive){gardenReveal=Math.min(1,gardenReveal+dt/2.5);let boom=Math.sin(gardenReveal*Math.PI);R.toneMappingExposure=1.55+boom*1.35;floorMat.uniforms.uWave.value=boom;if(gardenReveal>=1){gardenRevealActive=false;R.toneMappingExposure=1.55}}else floorMat.uniforms.uWave.value=.12+.12*Math.sin(tt*1.3)+Math.pow(Math.max(0,Math.sin(audio.pulse()*Math.PI*8)),8)*.22;
  sun.scale.setScalar(1+.22*Math.sin(tt*3));sun.material.color.setHSL((tt*.08+.88)%1,1,.62);
  rings.forEach((o,i)=>{o.rotation.z+=dt*(.2+i*.01)*(i%2?1:-1);o.scale.setScalar(1+.12*Math.sin(tt*2+i));o.material.color.setHSL((tt*.06+i/20)%1,1,.63)});
  pts.forEach(o=>{o.position.y=o.userData.b+Math.sin(tt*1.5+o.userData.p)*.3;o.material.color.setHSL((tt*.05+o.userData.p/6.28)%1,1,.7)});
@@ -182,7 +245,7 @@ entryHalo.material.opacity=.65+.3*(.5+.5*Math.sin(t*.008));returnHalo.material.o
  snakes.forEach((o,i)=>{o.rotation.z=.025*Math.sin(tt*.6+i);o.material.color.setHSL((o.userData.h+tt*.045)%1,1,.62);o.material.opacity=.62+.2*Math.sin(tt*1.4+i)});
  kaleido.forEach((g,i)=>{g.rotation.x+=dt*(.15+i%3*.04);g.rotation.y+=dt*(.22+i%4*.04);g.scale.setScalar(1+.25*Math.sin(tt*1.7+g.userData.p));g.children.forEach((m,j)=>m.material.color.setHSL((g.userData.h+tt*.05+j*.08)%1,1,.64))});
  C.getWorldPosition(head);
- vegetation.forEach((g,i)=>{let wp=new T.Vector3();g.getWorldPosition(wp);let dist=wp.distanceTo(head),near=Math.max(0,1-dist/2.4),wave=.5+.5*Math.sin(dist*2.8-tt*3.6),grow=1+.07*Math.sin(tt*2.1+g.userData.p)+near*.38+wave*.07;g.scale.set(grow,1+.12*Math.sin(tt*1.7+g.userData.p)+near*.28,grow);g.rotation.y+=dt*(g.userData.k==='f'?.12:.035);g.children.forEach((m,j)=>{if(m.material&&m.material.userData&&m.material.userData.h!==undefined){let h=(m.material.userData.h+tt*.035+wave*.18+near*.22+j*.006)%1;m.material.color.setHSL(h,1,.58);m.material.emissive.copy(m.material.color);m.material.emissiveIntensity=1.5+near*4.2+wave*1.1;if(g.userData.k==='f'&&j>0&&j<8){m.scale.x=1.45*(1+near*.75);m.scale.y=.55+near*.25}}})});
+ vegetation.forEach((g,i)=>{let wp=new T.Vector3();g.getWorldPosition(wp);let dist=wp.distanceTo(head),near=Math.max(0,1-dist/2.4),beat=Math.pow(Math.max(0,Math.sin(audio.pulse()*Math.PI*8)),8),wave=.5+.5*Math.sin(dist*2.8-tt*3.6),grow=1+.07*Math.sin(tt*2.1+g.userData.p)+near*.38+wave*.07+beat*.035;if(near>.72&&Math.random()<.025)audio.plant(near,g.userData.k);g.scale.set(grow,1+.12*Math.sin(tt*1.7+g.userData.p)+near*.28,grow);g.rotation.y+=dt*(g.userData.k==='f'?.12:.035);g.children.forEach((m,j)=>{if(m.material&&m.material.userData&&m.material.userData.h!==undefined){let h=(m.material.userData.h+tt*.035+wave*.18+near*.22+j*.006)%1;m.material.color.setHSL(h,1,.58);m.material.emissive.copy(m.material.color);m.material.emissiveIntensity=1.5+near*4.2+wave*1.1;if(g.userData.k==='f'&&j>0&&j<8){m.scale.x=1.45*(1+near*.75);m.scale.y=.55+near*.25}}})});
  rdisc.material.color.setRGB(1,0,0);
 }R.render(S,C)});
 if('serviceWorker'in navigator)addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));

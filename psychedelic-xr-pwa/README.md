@@ -1,22 +1,14 @@
-# Psychedelic Portal Garden v12
+# Psychedelic Portal Garden v13
 
-Effekte:
-- wabernder Shader-Boden
-- atmende, pulsierende und nähe-reaktive Pflanzen
-- räumliche Farbwellen
-- intensive Biolumineszenz
-- kaleidoskopisch/fraktaler Shader-Himmel
-- 1800 schwebende Sporen als GPU-Points
-- Neon-Lichtschlangen
-- morphende Pilze
-- Blüten öffnen sich bei Annäherung
-- Kaleidoskop-Objekte
-- rote Portalenergie zum Ausgang
-- 2,5-s Reveal/Farbexplosion beim Eintritt
+## Neue Audio-Engine
+- native Web Audio API, keine zusätzliche Runtime
+- generativer 108-BPM-Soundtrack
+- Drone in AR/MR
+- Kick, Bass, Hi-Hat/Noise und Arpeggio im VR-Garten
+- Delay/Feedback für psychedelische Räumlichkeit
+- Portal-Sweep beim Warp
+- Pflanzen erzeugen bei Nähe zusätzliche Pluck-Töne
+- Master-Clock beeinflusst gleichzeitig Boden/Pflanzen und Musik
+- Sound an/aus und Lautstärke auf der Startseite
 
-Interaktion:
-- Vegetation reagiert auf Kopf-/Betrachterdistanz
-- Nähe erhöht Wachstum und Leuchtkraft
-- Farbwellen laufen abhängig von Entfernung durch den Garten
-
-Portalverhalten und konfigurierbarer Portalabstand basieren auf v11.
+Die Architektur ist bewusst klein und später Strudel-kompatibel: visuelle Events und musikalische Pattern sind getrennt.
