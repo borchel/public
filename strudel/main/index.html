@@ -1,7 +1,7 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><link rel="manifest" href="manifest.webmanifest"><title>Strudel Studio v0.1.2</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><link rel="manifest" href="manifest.webmanifest"><title>Strudel Studio v0.2.0</title><style>
 :root{font:14px system-ui,Segoe UI,sans-serif;color:#e9effb;background:#0b1220}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button,select,input{background:#23334e;color:#eff5ff;border:1px solid #3e5373;border-radius:7px;padding:7px}button{cursor:pointer}button:hover{background:#354b6c}button.primary{background:#167e70}button.danger{background:#773b4d}button:disabled{opacity:.4}textarea{background:#080f1d;color:#e9f3ff;border:1px solid #3b5375;border-radius:7px;padding:12px;font:13px/1.5 Consolas,monospace;width:100%;resize:vertical}input[type=number]{width:75px}input[type=range]{padding:0;accent-color:#38b8a1}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 18px;background:#151f31;border-bottom:1px solid #30415b;flex-wrap:wrap}header h1{font-size:19px;margin:0}small,.muted{color:#9bafc9}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.workspace{display:grid;grid-template-columns:220px minmax(0,1fr) 260px;gap:12px;padding:12px;max-width:1800px;margin:auto}.panel{background:#151e30;border:1px solid #2d405e;border-radius:10px;padding:12px;margin-bottom:12px;min-width:0}.panel h2{font-size:14px;margin:0 0 10px}.nav button{width:100%;text-align:left;margin:3px 0}.nav button.active{background:#197d70}.section{display:none}.section.active{display:block}.toolbar{padding:10px 14px;border-bottom:1px solid #30415b;display:flex;align-items:center;gap:9px;flex-wrap:wrap}.timeline{overflow-x:auto}.timeline table{border-collapse:separate;border-spacing:3px;width:100%;min-width:610px}.timeline th,.timeline td{font-size:12px;text-align:center;padding:6px;border-radius:4px}.timeline th{background:#22334d}.timeline td{background:#1b293d;cursor:pointer}.timeline td.on{background:#147d72}.timeline td:hover{outline:1px solid #8be0d1}.timeline th:first-child{min-width:95px;text-align:left}.track{display:grid;grid-template-columns:1fr 85px 36px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #2a3a52}.track input{width:100%}.hint{font-size:12px;line-height:1.5;color:#a4b7d0}#errors{white-space:pre-wrap;color:#ff9fab;font:12px/1.5 Consolas,monospace}#generated{min-height:250px}#source{min-height:280px}#patternSource{min-height:100px}#legacySource{min-height:230px}.grid{display:grid;grid-template-columns:repeat(16,minmax(18px,1fr));gap:3px}.step{padding:8px 0;text-align:center;background:#263650;border:1px solid #405675;border-radius:3px;cursor:pointer;font-weight:700}.step.on{background:#19816f}.step.beat{border-left:3px solid #96b5d5}.stat{font-size:12px;color:#9db8d3}.pill{border:1px solid #425d7b;padding:5px 9px;border-radius:15px}.sideList{display:grid;gap:5px}.sideList button{text-align:left}.sideList button.active{background:#166f66}label{font-size:12px;color:#bfd0e4}label input{color:#fff}footer{padding:12px;color:#91a8c3;text-align:center}@media(max-width:1150px){.workspace{grid-template-columns:180px minmax(0,1fr)}.right{grid-column:1/-1}}@media(max-width:720px){.workspace{display:block}.toolbar{gap:5px}header{padding:9px}.grid{grid-template-columns:repeat(8,1fr)}}
 
-/* Playback visualization: transport-based approximation (not scheduler callbacks). */
+/* v0.2: Strudel Haps with calibrated audio-output clock (not scheduler callbacks). */
 .step.playhead{outline:3px solid #ffe17a;outline-offset:1px;box-shadow:0 0 0 4px #ffe17a33,0 0 18px #ffdb68;transform:scale(1.07);z-index:1;position:relative}
 .step.playhead.on{background:#f4cc42;color:#111827;border-color:#fff3ad}
 .timeline th.playhead-column{background:#b48b25!important;color:#101827!important;box-shadow:inset 0 -3px #fff0a4}
@@ -13,15 +13,23 @@
 #playbackInfo{font-weight:700;color:#ffe17a;max-width:100%;overflow-wrap:anywhere}
 #playbackInfo.legacy-indicator{color:#c3b8ff}
 @media(prefers-reduced-motion:reduce){.step.playhead{transform:none}}
-</style></head><body><header><div><h1>◉ STRUDEL STUDIO <small>v0.1.2 · Prototyp</small></h1><small>Hybrid Editor · Arrangement · Original Strudel Runtime</small></div><div class="row"><span id="status" class="pill">Runtime noch nicht initialisiert</span><button id="save">Speichern</button><button id="export">JSON exportieren</button><button id="import">Importieren</button><input type="file" id="file" accept=".json,.js,.txt" hidden></div></header>
+
+.event-flash{animation:eventFlash .16s ease-out;background:#ffe17a!important;color:#101827!important;box-shadow:0 0 20px #ffe17a!important}
+@keyframes eventFlash{from{filter:brightness(1.8)}to{filter:brightness(1)}}
+#eventList{font:12px/1.5 ui-monospace,monospace;max-height:145px;overflow:auto;white-space:pre-wrap;color:#a7f2d6}
+
+.transport-detail{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#16243b;border:1px solid #344b6a;border-radius:9px;margin:8px 0}
+.transport-detail input[type=range]{width:125px}.transport-detail output{min-width:48px;text-align:right;font-variant-numeric:tabular-nums}
+#timingQuality{font-size:12px;color:#bbd4ed}.event-flash{animation:eventFlash .24s ease-out}
+</style></head><body><header><div><h1>◉ STRUDEL STUDIO <small>v0.2.0 · Prototyp</small></h1><small>Hybrid Editor · Arrangement · Original Strudel Runtime</small></div><div class="row"><span id="status" class="pill">Runtime noch nicht initialisiert</span><button id="save">Speichern</button><button id="export">JSON exportieren</button><button id="import">Importieren</button><input type="file" id="file" accept=".json,.js,.txt" hidden></div></header>
 <div class="toolbar"><button class="primary" id="play">▶ Play</button><button class="danger" id="stop">■ Stop</button><label>BPM <input id="bpm" type="number" min="30" max="260" value="94"></label><label>Master <input id="master" type="range" min="0" max="100" value="75"></label><label>Soundbank <select id="bank"><option value="complete">VCSL + Dirt</option><option value="dirt">Dirt</option><option value="none">Nur Synth (ohne Sample-Registries)</option></select></label><span id="clock" class="stat">Position: —</span><span id="playbackInfo" class="stat" aria-live="off">Aktive Events: —</span><span id="offline" class="stat"></span></div>
-<div class="workspace"><aside><div class="panel"><h2>PROJEKT</h2><input id="projectName" style="width:100%" aria-label="Projektname"><div class="nav"><button data-view="arrangement" class="active">▦ Arrangement</button><button data-view="patterns">▦ Patterns</button><button data-view="code">⌘ Code / Compiler</button><button data-view="legacy">♫ Legacy-Komposition</button><button data-view="diagnostics">◉ Audio-Diagnose</button></div></div><div class="panel"><h2>Pattern-Bibliothek</h2><div id="patternList" class="sideList"></div><button id="addPattern" style="width:100%;margin-top:8px">+ Pattern</button></div><div class="panel"><h2>Projekt</h2><div class="row"><button id="reset">Demo neu</button><button id="loadLegacy">Mare importieren</button></div><p class="hint">Die mitgelieferte Mare-Komposition bleibt als unveränderter Original-Code erhalten; ihre Struktur wird nicht automatisch rekonstruiert.</p></div></aside>
+<div class="transport-detail" role="group" aria-label="Audio-Visualisierung Timing"><strong>Visual-Sync</strong><label>Offset <input id="visualOffset" type="range" min="-300" max="300" step="5" value="0" aria-label="Visueller Timing-Offset in Millisekunden"></label><output id="visualOffsetValue">0 ms</output><button id="resetVisualOffset" type="button">Zurücksetzen</button><span id="timingQuality">Audio-Uhr: bereit</span><span class="hint">Positiv = Anzeige später. Kalibrierung betrifft nur die Anzeige, nicht die Musik.</span></div><div class="workspace"><aside><div class="panel"><h2>PROJEKT</h2><input id="projectName" style="width:100%" aria-label="Projektname"><div class="nav"><button data-view="arrangement" class="active">▦ Arrangement</button><button data-view="patterns">▦ Patterns</button><button data-view="code">⌘ Code / Compiler</button><button data-view="legacy">♫ Legacy-Komposition</button><button data-view="diagnostics">◉ Audio-Diagnose</button></div></div><div class="panel"><h2>Pattern-Bibliothek</h2><div id="patternList" class="sideList"></div><button id="addPattern" style="width:100%;margin-top:8px">+ Pattern</button></div><div class="panel"><h2>Projekt</h2><div class="row"><button id="reset">Demo neu</button><button id="loadLegacy">Mare importieren</button></div><p class="hint">Die mitgelieferte Mare-Komposition bleibt als unveränderter Original-Code erhalten; ihre Struktur wird nicht automatisch rekonstruiert.</p></div></aside>
 <main><section id="view-arrangement" class="section active"><div class="panel"><h2>Arrangement · Clip-Platzierungen</h2><p class="hint">Eine Zelle schaltet einen Clip für den jeweiligen 4-Cycle-Block um. Gleiche Pattern können mehrfach verwendet werden. Die Demo umfasst 16 Cycles.</p><div id="timeline" class="timeline"></div><div class="row"><button id="addTrack">+ Track</button><button id="removeTrack">− Gewählten Track löschen</button><label>Gewählter Track <select id="selectedTrack"></select></label></div></div><div class="panel"><h2>Tracks und Pattern-Zuordnung</h2><div id="trackConfig"></div></div></section>
 <section id="view-patterns" class="section"><div class="panel"><h2>Pattern Editor</h2><div class="row"><label>Pattern <select id="patternSelect"></select></label><label>Typ <select id="patternType"><option value="structured">Structured (16 Steps)</option><option value="code">Code</option></select></label><button id="removePattern">Pattern löschen</button></div><p class="hint">Bei Structured Patterns wird das Grid zum Quellcode kompiliert. Bei Code Patterns bleibt der eingegebene Strudel-Ausdruck führend.</p><div id="stepGrid" class="grid"></div><div class="row" style="margin-top:12px"><label>Sound <input id="patternSound" value="bd" style="width:100px"></label><label>Patternname <input id="patternName" style="width:190px"></label></div><p class="hint">Strudel-Pattern-Ausdruck (Code Patterns frei editierbar)</p><textarea id="patternSource"></textarea><div class="row"><button id="applyPattern">Pattern übernehmen</button></div></div></section>
 <section id="view-code" class="section"><div class="panel"><h2>Generierter Strudel-Code</h2><p class="hint">Der Code wird aus dem strukturierten Projekt erzeugt. Er ist schreibgeschützt, um unbeabsichtigte Inkonsistenzen zu vermeiden. Freier Code wird in der Pattern-Bibliothek bearbeitet.</p><textarea id="generated" readonly></textarea><div class="row"><button id="copyCode">Code kopieren</button><button id="downloadCode">.js exportieren</button><button id="rebuild">Neu generieren</button></div></div></section>
 <section id="view-legacy" class="section"><div class="panel"><h2>Legacy-Strudel-Komposition</h2><p class="hint">Original-Code aus v0.4.7. Play im Legacy-Modus evaluiert diesen Code unverändert. Änderungen können als Code bearbeitet werden, werden aber nicht automatisch in Tracks und Clips zerlegt. Nur vertrauenswürdigen Code ausführen.</p><label><input type="checkbox" id="legacyMode"> Legacy-Code statt strukturiertem Arrangement abspielen</label><textarea id="legacySource"></textarea><div class="row"><button id="applyLegacy">Legacy-Code übernehmen</button><button id="downloadLegacy">Legacy .js exportieren</button></div></div></section>
 <section id="view-diagnostics" class="section"><div class="panel"><h2>Audio-Diagnose</h2><p class="hint">Test A nutzt Web Audio direkt. Test B prüft die Strudel-Synthese. Test C prüft ein einzelnes Sample aus der gewählten Registry.</p><div class="row"><button id="testWeb">A · WebAudio</button><button id="testSynth">B · Strudel Sinus</button><button id="testSample">C · Sample bd</button></div><pre id="diag" class="hint"></pre></div></section>
-</main><aside class="right"><div class="panel"><h2>Mixer</h2><div id="mixer"></div></div><div class="panel"><h2>Audio & Projektstatus</h2><div id="errors"></div><p class="hint">Soundbank-Fehler werden angezeigt und blockieren den Start nicht mehr. Soundbanks werden beim ersten Audio-Start registriert. Danach ist für einen Wechsel ein Reload nötig. Samples werden bei Bedarf geladen; für echten Offline-Betrieb müssen die Audiodateien lokal verfügbar sein.</p><p class="hint">Wiedergabeposition ist derzeit eine UI-Schätzung, keine bestätigte Audio-Scheduler-Position.</p></div><div class="panel"><h2>Speicherung</h2><p class="hint">Autosave in localStorage (Prototyp). Projekt-JSON lässt sich importieren/exportieren. IndexedDB und Offline-Samplepakete folgen in der nächsten Iteration.</p></div></aside></div><footer>Strudel Studio v0.1.2 · Engine @strudel/web@1.3.0 · Quellbasis Performance Controller v0.4.7</footer>
+</main><aside class="right"><div class="panel"><h2>Mixer</h2><div id="mixer"></div></div><div class="panel"><h2>Audio & Projektstatus</h2><div id="errors"></div><p class="hint">Soundbank-Fehler werden angezeigt und blockieren den Start nicht mehr. Soundbanks werden beim ersten Audio-Start registriert. Danach ist für einen Wechsel ein Reload nötig. Samples werden bei Bedarf geladen; für echten Offline-Betrieb müssen die Audiodateien lokal verfügbar sein.</p><p class="hint">Eventanzeige verwendet Strudel-Pattern-Haps per queryArc(). Die Zeitbasis nutzt nach Möglichkeit getOutputTimestamp() für die Audioausgabe und einen einstellbaren Visual-Offset. Kein Zugriff auf die tatsächlichen Strudel-Scheduler-Callbacks: Event-Zeitpunkte bleiben modellbasiert.</p><pre id="eventList">Noch keine Events</pre></div><div class="panel"><h2>Speicherung</h2><p class="hint">Autosave in localStorage (Prototyp). Projekt-JSON lässt sich importieren/exportieren. IndexedDB und Offline-Samplepakete folgen in der nächsten Iteration.</p></div></aside></div><footer>Strudel Studio v0.2.0 · Engine @strudel/web@1.3.0 · Quellbasis Performance Controller v0.4.7</footer>
 <script src="https://unpkg.com/@strudel/web@1.3.0"></script><script>
 'use strict';(()=>{
 const $=id=>document.getElementById(id);const deep=o=>JSON.parse(JSON.stringify(o));
@@ -29,12 +37,40 @@ const LEGACY={"code": "// MARE MAGNETICA v4.2.1 — SAMBA IMPULSO\n// Samba-Regg
 const BANK_URLS={vcsl:'https://raw.githubusercontent.com/felixroos/dough-samples/main/vcsl.json',dirt:'https://raw.githubusercontent.com/tidalcycles/Dirt-Samples/master/strudel.json'};
 const defaultProject=()=>({schemaVersion:'1.0',engine:{version:'1.3.0',soundbanks:['vcsl','dirt']},song:{id:'demo',name:'Strudel Studio Demo',bpm:94,beatsPerCycle:4,lengthCycles:16},patterns:[{id:'p-kick',name:'Kick',type:'structured',sound:'bd',steps:'x...x...x...x...'},{id:'p-snare',name:'Caixa',type:'structured',sound:'sd',steps:'....x.......x...'},{id:'p-hat',name:'HiHat',type:'structured',sound:'hh',steps:'x.x.x.x.x.x.x.x.'},{id:'p-bass',name:'Bass',type:'code',source:"note('d2 ~ d2 a2 ~ d2 c3 ~').s('sawtooth').lpf(500).gain(0.25)"}],tracks:[{id:'t-kick',name:'Kick',patternId:'p-kick',gain:0.6,mute:false,solo:false},{id:'t-snare',name:'Caixa',patternId:'p-snare',gain:0.4,mute:false,solo:false},{id:'t-hat',name:'HiHat',patternId:'p-hat',gain:0.3,mute:false,solo:false},{id:'t-bass',name:'Bass',patternId:'p-bass',gain:0.6,mute:false,solo:false}],clips:[{id:'c1',trackId:'t-kick',patternId:'p-kick',startCycle:0,lengthCycles:16},{id:'c2',trackId:'t-snare',patternId:'p-snare',startCycle:4,lengthCycles:12},{id:'c3',trackId:'t-hat',patternId:'p-hat',startCycle:0,lengthCycles:16},{id:'c4',trackId:'t-bass',patternId:'p-bass',startCycle:8,lengthCycles:8}],legacy:{code:LEGACY.code,enabled:false}});
 let project;try{project=JSON.parse(localStorage.getItem('strudel-studio-project'))||defaultProject()}catch{project=defaultProject()}
+let eventPatterns=new Map(),eventQueryErrors=new Set(),audioClockStart=null,lastEventKey="";
+let playbackStartPerf=0,playbackStartContext=null,visualOffsetMs=Number(localStorage.getItem("strudel-visual-offset-ms")||0),lastSubstepKey="",lastTimingLabel="";
 let selectedPattern=project.patterns[0]?.id||'',selectedTrack=project.tracks[0]?.id||'',playing=false,generation=0,engineInitialized=false,commandQueue=Promise.resolve(),timer=null,startTime=0,master=0.75;
 function report(msg){$('status').textContent=msg}function err(e){$('errors').textContent=String(e?.stack||e);report('Fehler')}function clearErr(){$('errors').textContent=''}function save(){localStorage.setItem('strudel-studio-project',JSON.stringify(project));report('Projekt lokal gespeichert')}
 function enqueueAudio(work){const p=commandQueue.catch(()=>{}).then(work);commandQueue=p.catch(()=>{});return p}
 async function ensureEngine(){if(engineInitialized)return;if(typeof window.initStrudel!=='function')throw Error('Strudel-CDN nicht verfügbar. Online laden oder lokale Runtime einbinden.');const bank=$('bank').value;report('Audio-Engine initialisieren…');if(bank==='none')await window.initStrudel();else await window.initStrudel({prebake:async()=>{const names=bank==='complete'?['vcsl','dirt']:['dirt'];const failures=[];for(const name of names){try{await samples(BANK_URLS[name])}catch(e){failures.push(name+': '+String(e?.message||e));console.warn('Soundbank nicht geladen:',name,e)}}if(failures.length){$('errors').textContent='Soundbank-Warnung (Audio-Engine startet trotzdem):\n'+failures.join('\n')+'\nTipp: Bei Problemen „Nur Synth“ wählen und die Seite neu laden.';}}});if(typeof window.evaluate!=='function')throw Error('Strudel evaluate() nicht verfügbar');engineInitialized=true;$('bank').disabled=true;const ac=window.getAudioContext?.();if(ac?.state==='suspended')await ac.resume();report('Strudel Engine bereit · '+bank)}
 function patternExpr(p){if(p.type==='structured'){const steps=String(p.steps||'').padEnd(16,'.').slice(0,16).split('').map(x=>x==='x'?(p.sound||'bd'):'~').join(' ');return 's('+JSON.stringify(steps)+')'}return String(p.source||'silence').trim()||'silence'}
-function compile(){const total=Number(project.song.lengthCycles);if(!Number.isInteger(total)||total<1||total>1024)throw Error('Ungültige Song-Länge (1–1024 Cycles)');const lines=['// Generated by Strudel Studio v0.1.2','setcps('+Number(project.song.bpm/240).toFixed(9)+');'];const activeSolo=project.tracks.some(t=>t.solo);const voices=[];for(const [i,t] of project.tracks.entries()){const clips=project.clips.filter(c=>c.trackId===t.id).sort((a,b)=>a.startCycle-b.startCycle);let pos=0;const segments=[];for(const c of clips){if(!project.patterns.some(p=>p.id===c.patternId))throw Error('Pattern fehlt: '+c.patternId);if(c.startCycle<pos)throw Error('Überlappende Clips auf '+t.name+' sind in v0.1 nicht unterstützt');if(c.startCycle<0||c.lengthCycles<1||c.startCycle+c.lengthCycles>total)throw Error('Clip außerhalb des Songs: '+t.name);if(c.startCycle>pos)segments.push('['+(c.startCycle-pos)+', silence]');const p=project.patterns.find(p=>p.id===c.patternId);segments.push('['+c.lengthCycles+', ('+patternExpr(p)+')]');pos=c.startCycle+c.lengthCycles}if(pos<total)segments.push('['+(total-pos)+', silence]');if(!segments.length)continue;const gain=t.mute||(activeSolo&&!t.solo)?0:Number(t.gain)*master;lines.push('const track_'+i+' = arrange(\n  '+segments.join(',\n  ')+'\n).postgain('+gain.toFixed(5)+');');voices.push('track_'+i)}lines.push('$: '+(voices.length?'stack('+voices.join(', ')+')':'silence')+';');return lines.join('\n')}
+function compile(){const total=Number(project.song.lengthCycles);if(!Number.isInteger(total)||total<1||total>1024)throw Error('Ungültige Song-Länge (1–1024 Cycles)');const lines=['// Generated by Strudel Studio v0.2.0','setcps('+Number(project.song.bpm/240).toFixed(9)+');'];const activeSolo=project.tracks.some(t=>t.solo);const voices=[];for(const [i,t] of project.tracks.entries()){const clips=project.clips.filter(c=>c.trackId===t.id).sort((a,b)=>a.startCycle-b.startCycle);let pos=0;const segments=[];for(const c of clips){if(!project.patterns.some(p=>p.id===c.patternId))throw Error('Pattern fehlt: '+c.patternId);if(c.startCycle<pos)throw Error('Überlappende Clips auf '+t.name+' sind in v0.1 nicht unterstützt');if(c.startCycle<0||c.lengthCycles<1||c.startCycle+c.lengthCycles>total)throw Error('Clip außerhalb des Songs: '+t.name);if(c.startCycle>pos)segments.push('['+(c.startCycle-pos)+', silence]');const p=project.patterns.find(p=>p.id===c.patternId);segments.push('['+c.lengthCycles+', ('+patternExpr(p)+')]');pos=c.startCycle+c.lengthCycles}if(pos<total)segments.push('['+(total-pos)+', silence]');if(!segments.length)continue;const gain=t.mute||(activeSolo&&!t.solo)?0:Number(t.gain)*master;lines.push('const track_'+i+' = arrange(\n  '+segments.join(',\n  ')+'\n).postgain('+gain.toFixed(5)+');');voices.push('track_'+i)}lines.push('$: '+(voices.length?'stack('+voices.join(', ')+')':'silence')+';');return lines.join('\n')}
+function prepareEventPatterns(){
+  eventPatterns.clear();eventQueryErrors.clear();
+  if(project.legacy?.enabled)return;
+  for(const p of project.patterns){
+    try{
+      // Same Strudel pattern expression used by the audio compiler.
+      // Never parse mini notation ourselves: query actual Strudel haps.
+      const pattern=Function('return ('+patternExpr(p)+')')();
+      if(typeof pattern?.queryArc!=='function')throw Error('Kein Strudel Pattern');
+      eventPatterns.set(p.id,pattern);
+    }catch(e){eventQueryErrors.add(p.id);console.warn('Pattern-Event-Abfrage nicht verfügbar:',p.name,e)}
+  }
+}
+function queryEvents(patternId,localCycle,fromFraction,toFraction){
+  const pat=eventPatterns.get(patternId);
+  if(!pat)return [];
+  try{
+    // Query a small forward interval in actual pattern-cycle coordinates.
+    // queryArc returns Hap objects with begin/end and value (including s/note).
+    const haps=pat.queryArc(localCycle+fromFraction,localCycle+toFraction);
+    return haps.filter(h=>{
+      const b=Number(h.whole?.begin??h.part?.begin);
+      return Number.isFinite(b)&&b>=localCycle+fromFraction-1e-7&&b<localCycle+toFraction-1e-7;
+    }).map(h=>({begin:Number(h.whole?.begin??h.part?.begin),value:h.value||{}}));
+  }catch(e){if(!eventQueryErrors.has(patternId))console.warn('Event-Abfrage fehlgeschlagen:',patternId,e);eventQueryErrors.add(patternId);return []}
+}
 function refreshCode(){try{$('generated').value=compile()}catch(e){$('generated').value='// '+e.message;throw e}}
 function render(){visualCycle=-1;visualStep=-1; $('projectName').value=project.song.name;$('bpm').value=project.song.bpm;$('legacyMode').checked=!!project.legacy?.enabled;$('legacySource').value=project.legacy?.code||'';renderPatterns();renderTracks();renderTimeline();try{refreshCode();clearErr()}catch(e){err(e)}}
 function renderPatterns(){visualCycle=-1;visualStep=-1;const psel=$('patternSelect'),list=$('patternList');psel.innerHTML='';list.innerHTML='';for(const p of project.patterns){const opt=document.createElement('option');opt.value=p.id;opt.textContent=p.name;psel.append(opt);const b=document.createElement('button');b.textContent=p.name+' · '+p.type;b.className=p.id===selectedPattern?'active':'';b.dataset.patternId=p.id;b.onclick=()=>{selectedPattern=p.id;showView('patterns');renderPatterns()};list.append(b)}if(!project.patterns.some(p=>p.id===selectedPattern))selectedPattern=project.patterns[0]?.id||'';psel.value=selectedPattern;const p=project.patterns.find(p=>p.id===selectedPattern);if(!p)return;$('patternType').value=p.type;$('patternSound').value=p.sound||'bd';$('patternName').value=p.name;$('patternSource').value=patternExpr(p);$('patternSource').readOnly=p.type==='structured';$('stepGrid').style.display=p.type==='structured'?'grid':'none';const grid=$('stepGrid');grid.innerHTML='';if(p.type==='structured'){const steps=String(p.steps||'').padEnd(16,'.').slice(0,16);[...steps].forEach((v,i)=>{const b=document.createElement('button');b.className='step'+(v==='x'?' on':'')+(i%4===0?' beat':'');b.dataset.step=String(i);b.textContent=v==='x'?'x':'·';b.onclick=()=>{const arr=[...steps];arr[i]=arr[i]==='x'?'.':'x';p.steps=arr.join('');renderPatterns();refreshCode();autosave()};grid.append(b)})}}
@@ -49,19 +85,49 @@ function clearPlaybackHighlights(){
   if(visualFrame){cancelAnimationFrame(visualFrame);visualFrame=0}
   document.querySelectorAll('.playhead,.playhead-column,.clip-playing,.track-playing,.pattern-playing').forEach(el=>el.classList.remove('playhead','playhead-column','clip-playing','track-playing','pattern-playing'));
   $('playbackInfo').textContent='Aktive Events: —';$('playbackInfo').classList.remove('legacy-indicator');
-  visualCycle=-1;visualStep=-1;
+  visualCycle=-1;visualStep=-1;lastSubstepKey='';
+}
+function visualElapsedSeconds(){
+  const ac=window.getAudioContext?.();
+  const offset=visualOffsetMs/1000;
+  if(ac && playbackStartContext!==null){
+    // getOutputTimestamp maps the Web Audio rendering clock to performance.now().
+    // It reduces UI clock drift, but does not reveal Strudel scheduler start time.
+    if(typeof ac.getOutputTimestamp==='function'){
+      try{
+        const ts=ac.getOutputTimestamp();
+        if(Number.isFinite(ts.contextTime)&&Number.isFinite(ts.performanceTime)&&ts.performanceTime>0){
+          const elapsed=ts.contextTime+(performance.now()-ts.performanceTime)/1000-playbackStartContext-offset;
+          if(lastTimingLabel!=='Audioausgabe · getOutputTimestamp'){
+            lastTimingLabel='Audioausgabe · getOutputTimestamp';$('timingQuality').textContent=lastTimingLabel+' · modellbasierte Position';
+          }
+          return Math.max(0,elapsed);
+        }
+      }catch(e){console.debug('Output timestamp unavailable',e)}
+    }
+    if(lastTimingLabel!=='AudioContext · Fallback'){
+      lastTimingLabel='AudioContext · Fallback';$('timingQuality').textContent=lastTimingLabel+' · modellbasierte Position';
+    }
+    return Math.max(0,ac.currentTime-playbackStartContext-offset);
+  }
+  if(lastTimingLabel!=='Performance-Uhr · Fallback'){
+    lastTimingLabel='Performance-Uhr · Fallback';$('timingQuality').textContent=lastTimingLabel+' · modellbasierte Position';
+  }
+  return Math.max(0,(performance.now()-playbackStartPerf)/1000-offset);
 }
 function updatePlaybackHighlights(){
   if(!playing)return;
   const bpm=Number(project.song.bpm)||94;
   const cycleDuration=240/bpm;
-  const elapsed=Math.max(0,(performance.now()-startTime)/1000);
+  const elapsed=visualElapsedSeconds();
   const songLength=Math.max(1,Number(project.song.lengthCycles)||16);
-  const absoluteCycle=elapsed/cycleDuration;
-  const cycle=absoluteCycle%songLength;
-  const cycleIndex=Math.floor(cycle);
-  const step=Math.min(15,Math.floor((cycle-cycleIndex)*16));
-  if(cycleIndex!==visualCycle||step!==visualStep||visualLegacy!==!!project.legacy?.enabled){
+  const cycle=(elapsed/cycleDuration)%songLength;
+  const cycleIndex=Math.floor(cycle),fraction=cycle-cycleIndex;
+  const step=Math.min(15,Math.floor(fraction*16));
+  // 32 subdivisions per cycle: two event-query windows per 16-step cell.
+  const substep=Math.min(31,Math.floor(fraction*32));
+  const shouldUpdate=cycleIndex!==visualCycle||step!==visualStep||visualLegacy!==!!project.legacy?.enabled;
+  if(shouldUpdate){
     visualCycle=cycleIndex;visualStep=step;visualLegacy=!!project.legacy?.enabled;
     document.querySelectorAll('.playhead,.playhead-column,.clip-playing,.track-playing,.pattern-playing').forEach(el=>el.classList.remove('playhead','playhead-column','clip-playing','track-playing','pattern-playing'));
     $('clock').textContent='Cycle ≈ '+(cycleIndex+1)+' · Step '+(step+1)+'/16';
@@ -72,37 +138,45 @@ function updatePlaybackHighlights(){
       $('playbackInfo').classList.remove('legacy-indicator');
       const block=Math.floor(cycleIndex/4);
       document.querySelectorAll('[data-cycle-block="'+block+'"]').forEach(el=>el.classList.add('playhead-column'));
-      const anySolo=project.tracks.some(t=>t.solo);
-      const activeNames=[];const activePatternIds=new Set();
-      for(const t of project.tracks){
-        if(t.mute||(anySolo&&!t.solo)||Number(t.gain)<=0)continue;
-        const c=project.clips.find(c=>c.trackId===t.id&&cycleIndex>=c.startCycle&&cycleIndex<c.startCycle+c.lengthCycles);
-        if(!c)continue;
-        const p=project.patterns.find(x=>x.id===c.patternId);
-        if(!p)continue;
-        activePatternIds.add(p.id);
-        document.querySelectorAll('[data-track-id="'+t.id+'"]').forEach(el=>el.classList.add('track-playing'));
-        const cell=document.querySelector('.timeline td[data-track-id="'+t.id+'"][data-cycle-block="'+block+'"]');
-        if(cell)cell.classList.add('clip-playing');
-        // The 16-step editor uses one cycle per pattern. Code patterns are
-        // highlighted at the pattern level only: their events are not parsed.
-        if(p.type==='structured'){
-          const localStep=step;
-          const hit=String(p.steps||'').padEnd(16,'.')[localStep]==='x';
-          if(hit)activeNames.push(t.name+' · '+p.name+' ['+(localStep+1)+']');
-        }else activeNames.push(t.name+' · '+p.name+' (Code)');
-      }
-      for(const id of activePatternIds){
-        const btn=document.querySelector('#patternList button[data-pattern-id="'+id+'"]');
-        if(btn)btn.classList.add('pattern-playing');
-      }
       const current=project.patterns.find(p=>p.id===selectedPattern);
-      if(current?.type==='structured'&&activePatternIds.has(current.id)){
-        const el=document.querySelector('#stepGrid .step[data-step="'+step+'"]');
-        if(el)el.classList.add('playhead');
-      }
-      $('playbackInfo').textContent=activeNames.length?'Events ≈ '+activeNames.join(' · '):'Kein Event in diesem Step';
+      if(current){const el=document.querySelector('#stepGrid .step[data-step="'+step+'"]');if(el)el.classList.add('playhead')}
     }
+  }
+  if(!visualLegacy){
+    const substepKey=cycleIndex+':'+substep;
+    if(substepKey===lastSubstepKey){visualFrame=requestAnimationFrame(updatePlaybackHighlights);return}
+    lastSubstepKey=substepKey;
+    const block=Math.floor(cycleIndex/4);
+    const anySolo=project.tracks.some(t=>t.solo);
+    const activeNames=[],activePatternIds=new Set();
+    const halfStepStart=substep/32,halfStepEnd=(substep+1)/32;
+    for(const t of project.tracks){
+      if(t.mute||(anySolo&&!t.solo)||Number(t.gain)<=0)continue;
+      const c=project.clips.find(c=>c.trackId===t.id&&cycleIndex>=c.startCycle&&cycleIndex<c.startCycle+c.lengthCycles);
+      if(!c)continue;
+      const p=project.patterns.find(x=>x.id===c.patternId);if(!p)continue;
+      activePatternIds.add(p.id);
+      document.querySelectorAll('[data-track-id="'+t.id+'"]').forEach(el=>el.classList.add('track-playing'));
+      const cell=document.querySelector('.timeline td[data-track-id="'+t.id+'"][data-cycle-block="'+block+'"]');
+      if(cell)cell.classList.add('clip-playing');
+      // arrange([length, pattern]) restarts each pattern at the clip boundary.
+      const localCycle=cycleIndex-c.startCycle;
+      const events=queryEvents(p.id,localCycle,halfStepStart,halfStepEnd);
+      for(const ev of events){
+        const label=String(ev.value.s??ev.value.sound??ev.value.note??ev.value.n??'Event');
+        activeNames.push(t.name+' · '+p.name+' · '+label);
+        if(p.id===selectedPattern){
+          const cell=document.querySelector('#stepGrid .step[data-step="'+step+'"]');
+          if(cell){cell.classList.remove('event-flash');void cell.offsetWidth;cell.classList.add('event-flash')}
+        }
+      }
+    }
+    for(const id of activePatternIds){const btn=document.querySelector('#patternList button[data-pattern-id="'+id+'"]');if(btn)btn.classList.add('pattern-playing')}
+    if(activeNames.length){
+      $('playbackInfo').textContent='Strudel Events: '+activeNames.slice(0,5).join(' · ')+(activeNames.length>5?' +'+(activeNames.length-5):'');
+      const key=substepKey;
+      if(key!==lastEventKey){lastEventKey=key;const list=$('eventList');if(list)list.textContent=('Takt '+(cycleIndex+1)+' · 1/32 '+(substep+1)+'\n'+activeNames.join('\n')+'\n\n'+list.textContent).slice(0,4500)}
+    }else if(shouldUpdate){$('playbackInfo').textContent=eventQueryErrors.size?'Eventabfrage für '+eventQueryErrors.size+' Pattern(s) nicht verfügbar':'Kein Event in diesem Step'}
   }
   visualFrame=requestAnimationFrame(updatePlaybackHighlights);
 }
@@ -113,19 +187,23 @@ async function play(){
   try{
     await enqueueAudio(async()=>{if(token!==generation||!playing)return;await ensureEngine();if(token!==generation||!playing)return;await window.evaluate(source)});
     if(token===generation&&playing){
-      startTime=performance.now();visualLegacy=!!project.legacy?.enabled;
+      prepareEventPatterns();startTime=performance.now();playbackStartPerf=startTime;playbackStartContext=window.getAudioContext?.()?.currentTime??null;audioClockStart=playbackStartContext;lastEventKey='';lastSubstepKey='';lastTimingLabel='';visualLegacy=!!project.legacy?.enabled;
       updatePlaybackHighlights();
       report('Wiedergabe aktiv · '+(project.legacy?.enabled?'Legacy':'Studio'));
     }
   }catch(e){if(token===generation){playing=false;clearPlaybackHighlights();err(e)}}
 }
 async function stop(){
-  ++generation;playing=false;clearInterval(timer);clearPlaybackHighlights();$('clock').textContent='Position: —';
+  ++generation;playing=false;audioClockStart=null;playbackStartContext=null;lastSubstepKey='';eventPatterns.clear();clearInterval(timer);clearPlaybackHighlights();$('clock').textContent='Position: —';
   try{await enqueueAudio(async()=>{if(engineInitialized)await window.evaluate('silence')});report('Gestoppt')}catch(e){err(e)}
 }
 function showView(name){document.querySelectorAll('.section').forEach(x=>x.classList.toggle('active',x.id==='view-'+name));document.querySelectorAll('[data-view]').forEach(x=>x.classList.toggle('active',x.dataset.view===name))}
 function download(name,text,type='text/plain'){const blob=new Blob([text],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function importProject(data){if(data?.schemaVersion==='1.0'&&data.song&&Array.isArray(data.patterns)&&Array.isArray(data.tracks)&&Array.isArray(data.clips)){project=data;project.legacy ||= {code:'',enabled:false};selectedPattern=project.patterns[0]?.id||'';selectedTrack=project.tracks[0]?.id||'';render();autosave();report('Studio-Projekt importiert');return}if(data?.code&&data?.contract){project=defaultProject();project.legacy={code:data.code,enabled:true};project.song.name=data.contract.title||'Importierter Performance Controller';project.song.bpm=Number(data.contract.bpm)||94;render();autosave();report('Performance-Projekt als Legacy-Code importiert');return}throw Error('Unbekanntes Projektformat')}
+$('visualOffset').value=String(visualOffsetMs);
+$('visualOffsetValue').textContent=(visualOffsetMs>0?'+':'')+visualOffsetMs+' ms';
+$('visualOffset').oninput=e=>{visualOffsetMs=Number(e.target.value);$('visualOffsetValue').textContent=(visualOffsetMs>0?'+':'')+visualOffsetMs+' ms';localStorage.setItem('strudel-visual-offset-ms',String(visualOffsetMs));lastSubstepKey='';visualCycle=-1};
+$('resetVisualOffset').onclick=()=>{$('visualOffset').value='0';$('visualOffset').oninput({target:{value:'0'}})};
 $('play').onclick=()=>void play();$('stop').onclick=()=>void stop();$('save').onclick=save;$('export').onclick=()=>download((project.song.name||'project').replace(/[^a-z0-9_-]/gi,'_')+'.json',JSON.stringify(project,null,2),'application/json');$('import').onclick=()=>$('file').click();$('file').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{const text=await file.text();if(/\.json$/i.test(file.name))importProject(JSON.parse(text));else{project.legacy={code:text,enabled:true};render();autosave();report('Strudel-Code als Legacy importiert')}}catch(ex){err(ex)}e.target.value=''};
 $('projectName').onchange=e=>{project.song.name=e.target.value;autosave()};$('bpm').onchange=e=>{project.song.bpm=Number(e.target.value);autosave();refreshCode();if(playing)void play()};$('master').onchange=e=>{master=Number(e.target.value)/100;refreshCode();if(playing)void play()};$('legacyMode').onchange=e=>{project.legacy.enabled=e.target.checked;autosave()};$('applyLegacy').onclick=()=>{project.legacy.code=$('legacySource').value;autosave();report('Legacy-Code übernommen')};$('downloadLegacy').onclick=()=>download('legacy-strudel.js',project.legacy.code);$('reset').onclick=()=>{if(!confirm('Demo-Projekt neu laden?'))return;void stop();project=defaultProject();render();autosave()};$('loadLegacy').onclick=()=>{project.legacy={code:LEGACY.code,enabled:true};render();autosave();showView('legacy')};
 $('addPattern').onclick=()=>{const p={id:uid('p'),name:'Neues Pattern',type:'structured',sound:'bd',steps:'x...x...x...x...'};project.patterns.push(p);selectedPattern=p.id;render();autosave();showView('patterns')};$('patternSelect').onchange=e=>{selectedPattern=e.target.value;renderPatterns()};$('patternType').onchange=e=>{const p=project.patterns.find(p=>p.id===selectedPattern);if(!p)return;p.type=e.target.value;if(p.type==='code')p.source=patternExpr({...p,type:'structured'});renderPatterns();autosave()};$('applyPattern').onclick=()=>{const p=project.patterns.find(p=>p.id===selectedPattern);if(!p)return;p.name=$('patternName').value;p.sound=$('patternSound').value;if(p.type==='code')p.source=$('patternSource').value;render();autosave();report('Pattern übernommen')};$('removePattern').onclick=()=>{if(project.clips.some(c=>c.patternId===selectedPattern)||project.tracks.some(t=>t.patternId===selectedPattern)){err(Error('Pattern wird von einem Track oder Clip verwendet'));return}project.patterns=project.patterns.filter(p=>p.id!==selectedPattern);selectedPattern=project.patterns[0]?.id||'';render();autosave()};

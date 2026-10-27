@@ -1,48 +1,35 @@
-# Strudel Studio v0.1
+# Strudel Studio v0.2.0 – Visual Sync
 
-Erster ausführbarer Architekturprototyp auf Basis des Strudel Performance Controllers v0.4.7.
+Basiert auf der funktionierenden v0.1.3. Strudel `@strudel/web@1.3.0`, Soundbank-Fallback, Projekt-JSON, Legacy-Modus, Pattern-Editor und Mixer bleiben erhalten.
+
+## Änderungen
+
+- Zeitreferenz für die Visualisierung bevorzugt `AudioContext.getOutputTimestamp()` und fällt auf `AudioContext.currentTime` bzw. `performance.now()` zurück.
+- Einstellbarer visueller Offset von -300 bis +300 ms; wird lokal gespeichert. Positive Werte verschieben die Anzeige nach hinten.
+- Pro 1/32-Cycle-Zeitfenster nur eine Eventabfrage und eine Eventprotokoll-Aktualisierung; weniger mehrfaches Flackern und redundante Abfragen.
+- Bei Stop und Play werden Zeitreferenz und Eventfenster zurückgesetzt.
+- Status zeigt die aktuell verwendete Zeitbasis an.
+
+## Wichtig: technische Grenze
+
+Diese Version **verwendet keine Strudel-Scheduler-Callbacks**. `getOutputTimestamp()` synchronisiert die UI-Uhr mit der Web-Audio-Ausgabezeit, aber nicht mit dem tatsächlichen Beginn der Strudel-Events. Der Zeitpunkt der ersten `evaluate()`-Ausgabe ist nicht aus der verwendeten API ableitbar. Auch Audio-Geräte- und Sample-Latenzen können Abweichungen verursachen. Die Haps stammen aus `queryArc()`, ihre Anzeige erfolgt anhand einer modellbasierten Zeitachse. Daher ist dies eine Verbesserung der Zeitreferenz und Kalibrierung, **keine samplegenaue Event-Synchronisation**.
 
 ## Start
 
-Im Verzeichnis `strudel-studio-v0.1` ausführen:
+`index.html` auf `http://localhost` oder einem HTTPS-Host öffnen. Die Strudel-Runtime wird weiter über das CDN geladen, und Samples benötigen Internet. Bei Problemen mit den Soundbanks „Nur Synth“ auswählen.
 
-```bash
-python -m http.server 8000
-```
+## Test
 
-Dann `http://localhost:8000` im Browser öffnen. Zum ersten Start wird Internet benötigt: `@strudel/web@1.3.0` wird über unpkg geladen und Sample-Mappings werden bei Bedarf registriert.
-
-## Umfang
-
-- Original-Strudel-Runtime, Soundbank-Initialisierung und serialisierte Audio-Kommandos
-- Visuelle 16-Step-Patterns und freie Strudel-Code-Patterns
-- Track-Editor, Mixer, Clip-Timeline (4-Cycle-Raster), Arrangement-Compiler
-- Import/Export von Projekt-JSON; Legacy-Code der v0.4.7 integriert
-- Lokales Speichern (localStorage) und Service-Worker für die App-Shell
-- WebAudio-, Strudel-Synth- und Sample-Diagnose
+1. Demo laden und Play starten.
+2. Status der Audio-Uhr prüfen.
+3. 16tel/32stel-Highlights mit den hörbaren Anschlägen vergleichen.
+4. Offset bei Bedarf anpassen und Stop/Play wiederholen.
+5. Legacy-Modus prüfen: dieser besitzt weiterhin keine Track-/Event-Zuordnung.
 
 ## Bekannte Grenzen
 
-- Die Anwendung wurde statisch geprüft, aber nicht mit Audio im Browser verifiziert.
-- CDN-Runtime und Audio-Samples sind noch nicht offline gebündelt. Eine vollständige Offline-PWA ist deshalb noch nicht erreicht.
-- Der Taktzähler ist eine UI-Schätzung, keine Scheduler-Synchronisierung.
-- Arrangement unterstützt derzeit keine überlappenden Clips pro Track.
-- Beim Playback-Update wird das gesamte Pattern neu evaluiert.
-- Legacy-Code wird unverändert evaluiert, nicht automatisch in Tracks umgewandelt.
-- Importierter JavaScript-Code wird ausgeführt: nur vertrauenswürdige Dateien öffnen.
-- Für die erste Version ist der JSON-Export das verlässlichere Backup; localStorage ist kein Ersatz für eine Datei.
-
-
-## v0.1.2 – Soundbank-Fehlerbehandlung
-
-Die VCSL- oder Dirt-Registry kann je nach Netzwerk, CORS, Hosting-Sandbox oder Serverzustand nicht erreichbar sein. Fehler einzelner Registries werden beim Start abgefangen und angezeigt; die Engine-Initialisierung wird fortgesetzt. Dies garantiert **nicht**, dass Samples aus der fehlgeschlagenen Registry abspielbar sind. Für einen Synthesizer-Test die Soundbank **Nur Synth** auswählen, dann Play oder Test B. Nach erstmaliger Initialisierung erfordert ein Soundbank-Wechsel ein Neuladen. Ein offlinefähiges Samplepaket ist noch nicht enthalten.
-
-
-## Neu in v0.1.2: Playback-Highlighting
-
-- Aktive Clip-Zelle und Track im Arrangement werden hervorgehoben.
-- Aktive Patterns werden in der Bibliothek markiert.
-- Der aktuelle Step eines ausgewählten, gerade spielenden Structured-Patterns erhält einen gelben Playhead.
-- Der Event-Indikator nennt Treffer auf aktiven strukturierten Tracks.
-- Freie Code-Patterns werden nur auf Pattern-Ebene markiert. Legacy-Kompositionen erhalten keine Track-/Event-Zuordnung.
-- **Timing-Einschränkung:** Die Darstellung basiert auf `performance.now()` und BPM und ist eine Annäherung, keine Rückmeldung des Strudel-Audio-Schedulers. Die Anzeige kann bei Audio-Latenz, langen Patterns und Live-Neuevaluation abweichen.
+- Kein Scheduler-Callback und kein exaktes Event-Audio-Timestamp-Mapping.
+- Visuelle 16-Step-Raster; Event-Abfragen mit 32 Unterteilungen.
+- Projekt ist noch keine vollständig offlinefähige PWA.
+- Beliebiger importierter JavaScript-Code wird ausgeführt: nur vertrauenswürdige Quellen verwenden.
+- Keine Audio-Browsertests in dieser Umgebung.
