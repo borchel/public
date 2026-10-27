@@ -1,15 +1,15 @@
-# Strudel Studio v0.2.2 — kontinuierlicher Pattern-Playhead
+# Strudel Studio v0.2.3 — Event-Highlighting repariert
 
-## Behobener Fehler
-In v0.2.1 blieb der Pattern-Playhead beim letzten ausgelösten Event stehen, weil seine Position nur bei eintreffenden `onTrigger`-Events aktualisiert wurde.
+## Fehlerbehebung
+In v0.2.2 konnte ein ausgelöstes Event (oft Step 1) gelb markiert bleiben, obwohl der Playhead weiterlief. Ursache: `event-flash` wurde im Scheduler-Pfad nur beim CSS-Event `animationend` entfernt. Dieses Ereignis kann ausbleiben, beispielsweise bei Hintergrund-Tabs oder unterbrochenen Animationen. Der Fallback-Pfad entfernte die Klasse überhaupt nicht.
 
-Jetzt bestimmt der erste Strudel-Scheduler-Callback die Zeitankerposition (Audio-Zielzeit und Cycle-Position). Die Oberfläche berechnet daraus in jedem Animationsframe die laufende musikalische Position. Dadurch wandert die Step-Markierung auch über Pausen hinweg. Die Anschlags-Highlights kommen weiterhin ausschließlich aus tatsächlichen `onTrigger`-Callbacks.
+In v0.2.3 erhalten alle Event-Highlights eine feste Lebensdauer von 170 ms. Eine Bereinigung erfolgt in jedem Visualisierungsframe, beim Stop/Neustart und beim Neuaufbau des Pattern-Editors. Der Playhead bleibt davon unabhängig.
 
 ## Test
-1. Demo starten, Pattern-Ansicht öffnen und Kick-Pattern wählen.
-2. Gelbe Playhead-Markierung muss alle 16 Steps durchlaufen, auch wenn kein Kick erklingt.
-3. Tatsächliche Anschläge blitzen zusätzlich kurz auf.
-4. Stop/Play mehrfach testen und Timing-Offset nach Bedarf justieren.
+1. Demo starten und Kick-Pattern öffnen.
+2. Step 1 sollte beim Anschlag kurz aufblitzen, danach wieder die normale Darstellung zeigen.
+3. Playhead soll unabhängig davon alle 16 Steps durchlaufen.
+4. Zwischen Tabs wechseln, zurückkehren, Stop/Play wiederholen.
 
-## Grenzen
-Der Playhead wird aus einem Scheduler-Callback verankert und anschließend mit BPM fortgeschrieben. Er ist kein eigener kontinuierlicher Callback der Strudel-Engine. Tempoänderungen lösen durch erneutes Play eine neue Verankerung aus. Audio-Latenz und Browser-Timing können weiterhin kleine Abweichungen verursachen. Legacy-Kompositionen verwenden weiterhin den bisherigen Fallback. Kein tatsächlicher Browser-Audiotest durchgeführt.
+## Einschränkung
+Die Audioausgabe wurde nicht im Browser geprüft. Die Änderung betrifft nur die CSS-Markierung, nicht die Strudel-Audioengine.
