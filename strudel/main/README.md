@@ -1,15 +1,19 @@
-# Strudel Studio v0.2.3 — Event-Highlighting repariert
+# Strudel Studio v0.3.0 — Step-Sequencer
 
-## Fehlerbehebung
-In v0.2.2 konnte ein ausgelöstes Event (oft Step 1) gelb markiert bleiben, obwohl der Playhead weiterlief. Ursache: `event-flash` wurde im Scheduler-Pfad nur beim CSS-Event `animationend` entfernt. Dieses Ereignis kann ausbleiben, beispielsweise bei Hintergrund-Tabs oder unterbrochenen Animationen. Der Fallback-Pfad entfernte die Klasse überhaupt nicht.
-
-In v0.2.3 erhalten alle Event-Highlights eine feste Lebensdauer von 170 ms. Eine Bereinigung erfolgt in jedem Visualisierungsframe, beim Stop/Neustart und beim Neuaufbau des Pattern-Editors. Der Playhead bleibt davon unabhängig.
+## Neu
+- 16, 32 oder 64 Steps je Cycle für strukturierte Patterns.
+- Pro Step ein Velocity-Wert (0–100 %), umgesetzt als Strudel `.gain()`-Pattern.
+- Pattern duplizieren und Steps löschen.
+- Rechtsklick auf einen Step öffnet dessen Velocity-Einstellung; normaler Klick schaltet den Step um.
+- Der Scheduler-Playhead berücksichtigt die ausgewählte Pattern-Auflösung; Event-Highlights verwenden ebenfalls die Auflösung.
+- Bestehende Projekte ohne `stepCount` oder `velocities` werden mit 16 Steps und 100 % Velocity weiterverwendet.
 
 ## Test
-1. Demo starten und Kick-Pattern öffnen.
-2. Step 1 sollte beim Anschlag kurz aufblitzen, danach wieder die normale Darstellung zeigen.
-3. Playhead soll unabhängig davon alle 16 Steps durchlaufen.
-4. Zwischen Tabs wechseln, zurückkehren, Stop/Play wiederholen.
+1. Demo starten, Pattern Kick auswählen.
+2. Auf 32 oder 64 Steps umstellen, zusätzliche Anschläge setzen.
+3. Rechtsklick auf einen aktiven Step, Velocity reduzieren.
+4. Kontrollieren, ob der Playhead über alle Steps läuft.
+5. Pattern duplizieren und als Variante bearbeiten.
 
-## Einschränkung
-Die Audioausgabe wurde nicht im Browser geprüft. Die Änderung betrifft nur die CSS-Markierung, nicht die Strudel-Audioengine.
+## Hinweise
+Das Pattern-Grid beschreibt weiterhin einen Cycle. Bei 64 Steps entspricht ein Step einem 64stel eines Cycles. Die Bearbeitung eines Patterns während der Wiedergabe startet den Strudel-Playback aktuell neu. Ein Piano-Roll, Probability, Ratchets und Microtiming sind noch nicht umgesetzt. Die Runtime und die Soundbank-Initialisierung wurden nicht verändert. Browser-Audio wurde hier nicht verifiziert.
