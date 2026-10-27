@@ -1,7 +1,7 @@
-<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><link rel="manifest" href="manifest.webmanifest"><title>Strudel Studio v0.2.1</title><style>
+<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><link rel="manifest" href="manifest.webmanifest"><title>Strudel Studio v0.2.2</title><style>
 :root{font:14px system-ui,Segoe UI,sans-serif;color:#e9effb;background:#0b1220}*{box-sizing:border-box}body{margin:0}button,input,textarea,select{font:inherit}button,select,input{background:#23334e;color:#eff5ff;border:1px solid #3e5373;border-radius:7px;padding:7px}button{cursor:pointer}button:hover{background:#354b6c}button.primary{background:#167e70}button.danger{background:#773b4d}button:disabled{opacity:.4}textarea{background:#080f1d;color:#e9f3ff;border:1px solid #3b5375;border-radius:7px;padding:12px;font:13px/1.5 Consolas,monospace;width:100%;resize:vertical}input[type=number]{width:75px}input[type=range]{padding:0;accent-color:#38b8a1}header{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 18px;background:#151f31;border-bottom:1px solid #30415b;flex-wrap:wrap}header h1{font-size:19px;margin:0}small,.muted{color:#9bafc9}.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.workspace{display:grid;grid-template-columns:220px minmax(0,1fr) 260px;gap:12px;padding:12px;max-width:1800px;margin:auto}.panel{background:#151e30;border:1px solid #2d405e;border-radius:10px;padding:12px;margin-bottom:12px;min-width:0}.panel h2{font-size:14px;margin:0 0 10px}.nav button{width:100%;text-align:left;margin:3px 0}.nav button.active{background:#197d70}.section{display:none}.section.active{display:block}.toolbar{padding:10px 14px;border-bottom:1px solid #30415b;display:flex;align-items:center;gap:9px;flex-wrap:wrap}.timeline{overflow-x:auto}.timeline table{border-collapse:separate;border-spacing:3px;width:100%;min-width:610px}.timeline th,.timeline td{font-size:12px;text-align:center;padding:6px;border-radius:4px}.timeline th{background:#22334d}.timeline td{background:#1b293d;cursor:pointer}.timeline td.on{background:#147d72}.timeline td:hover{outline:1px solid #8be0d1}.timeline th:first-child{min-width:95px;text-align:left}.track{display:grid;grid-template-columns:1fr 85px 36px;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid #2a3a52}.track input{width:100%}.hint{font-size:12px;line-height:1.5;color:#a4b7d0}#errors{white-space:pre-wrap;color:#ff9fab;font:12px/1.5 Consolas,monospace}#generated{min-height:250px}#source{min-height:280px}#patternSource{min-height:100px}#legacySource{min-height:230px}.grid{display:grid;grid-template-columns:repeat(16,minmax(18px,1fr));gap:3px}.step{padding:8px 0;text-align:center;background:#263650;border:1px solid #405675;border-radius:3px;cursor:pointer;font-weight:700}.step.on{background:#19816f}.step.beat{border-left:3px solid #96b5d5}.stat{font-size:12px;color:#9db8d3}.pill{border:1px solid #425d7b;padding:5px 9px;border-radius:15px}.sideList{display:grid;gap:5px}.sideList button{text-align:left}.sideList button.active{background:#166f66}label{font-size:12px;color:#bfd0e4}label input{color:#fff}footer{padding:12px;color:#91a8c3;text-align:center}@media(max-width:1150px){.workspace{grid-template-columns:180px minmax(0,1fr)}.right{grid-column:1/-1}}@media(max-width:720px){.workspace{display:block}.toolbar{gap:5px}header{padding:9px}.grid{grid-template-columns:repeat(8,1fr)}}
 
-/* v0.2.1: Pattern.onTrigger receives Strudel scheduler Haps and audio target times. */
+/* v0.2.2: Pattern.onTrigger receives Strudel scheduler Haps and audio target times. */
 .step.playhead{outline:3px solid #ffe17a;outline-offset:1px;box-shadow:0 0 0 4px #ffe17a33,0 0 18px #ffdb68;transform:scale(1.07);z-index:1;position:relative}
 .step.playhead.on{background:#f4cc42;color:#111827;border-color:#fff3ad}
 .timeline th.playhead-column{background:#b48b25!important;color:#101827!important;box-shadow:inset 0 -3px #fff0a4}
@@ -21,7 +21,7 @@
 .transport-detail{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:#16243b;border:1px solid #344b6a;border-radius:9px;margin:8px 0}
 .transport-detail input[type=range]{width:125px}.transport-detail output{min-width:48px;text-align:right;font-variant-numeric:tabular-nums}
 #timingQuality{font-size:12px;color:#bbd4ed}.event-flash{animation:eventFlash .24s ease-out}
-</style></head><body><header><div><h1>◉ STRUDEL STUDIO <small>v0.2.1 · Prototyp</small></h1><small>Hybrid Editor · Arrangement · Original Strudel Runtime</small></div><div class="row"><span id="status" class="pill">Runtime noch nicht initialisiert</span><button id="save">Speichern</button><button id="export">JSON exportieren</button><button id="import">Importieren</button><input type="file" id="file" accept=".json,.js,.txt" hidden></div></header>
+</style></head><body><header><div><h1>◉ STRUDEL STUDIO <small>v0.2.2 · Prototyp</small></h1><small>Hybrid Editor · Arrangement · Original Strudel Runtime</small></div><div class="row"><span id="status" class="pill">Runtime noch nicht initialisiert</span><button id="save">Speichern</button><button id="export">JSON exportieren</button><button id="import">Importieren</button><input type="file" id="file" accept=".json,.js,.txt" hidden></div></header>
 <div class="toolbar"><button class="primary" id="play">▶ Play</button><button class="danger" id="stop">■ Stop</button><label>BPM <input id="bpm" type="number" min="30" max="260" value="94"></label><label>Master <input id="master" type="range" min="0" max="100" value="75"></label><label>Soundbank <select id="bank"><option value="complete">VCSL + Dirt</option><option value="dirt">Dirt</option><option value="none">Nur Synth (ohne Sample-Registries)</option></select></label><span id="clock" class="stat">Position: —</span><span id="playbackInfo" class="stat" aria-live="off">Aktive Events: —</span><span id="offline" class="stat"></span></div>
 <div class="transport-detail" role="group" aria-label="Audio-Visualisierung Timing"><strong>Visual-Sync</strong><label>Offset <input id="visualOffset" type="range" min="-300" max="300" step="5" value="0" aria-label="Visueller Timing-Offset in Millisekunden"></label><output id="visualOffsetValue">0 ms</output><button id="resetVisualOffset" type="button">Zurücksetzen</button><span id="timingQuality">Audio-Uhr: bereit</span><span class="hint">Positiv = Anzeige später. Kalibrierung betrifft nur die Anzeige, nicht die Musik.</span></div><div class="workspace"><aside><div class="panel"><h2>PROJEKT</h2><input id="projectName" style="width:100%" aria-label="Projektname"><div class="nav"><button data-view="arrangement" class="active">▦ Arrangement</button><button data-view="patterns">▦ Patterns</button><button data-view="code">⌘ Code / Compiler</button><button data-view="legacy">♫ Legacy-Komposition</button><button data-view="diagnostics">◉ Audio-Diagnose</button></div></div><div class="panel"><h2>Pattern-Bibliothek</h2><div id="patternList" class="sideList"></div><button id="addPattern" style="width:100%;margin-top:8px">+ Pattern</button></div><div class="panel"><h2>Projekt</h2><div class="row"><button id="reset">Demo neu</button><button id="loadLegacy">Mare importieren</button></div><p class="hint">Die mitgelieferte Mare-Komposition bleibt als unveränderter Original-Code erhalten; ihre Struktur wird nicht automatisch rekonstruiert.</p></div></aside>
 <main><section id="view-arrangement" class="section active"><div class="panel"><h2>Arrangement · Clip-Platzierungen</h2><p class="hint">Eine Zelle schaltet einen Clip für den jeweiligen 4-Cycle-Block um. Gleiche Pattern können mehrfach verwendet werden. Die Demo umfasst 16 Cycles.</p><div id="timeline" class="timeline"></div><div class="row"><button id="addTrack">+ Track</button><button id="removeTrack">− Gewählten Track löschen</button><label>Gewählter Track <select id="selectedTrack"></select></label></div></div><div class="panel"><h2>Tracks und Pattern-Zuordnung</h2><div id="trackConfig"></div></div></section>
@@ -29,7 +29,7 @@
 <section id="view-code" class="section"><div class="panel"><h2>Generierter Strudel-Code</h2><p class="hint">Der Code wird aus dem strukturierten Projekt erzeugt. Er ist schreibgeschützt, um unbeabsichtigte Inkonsistenzen zu vermeiden. Freier Code wird in der Pattern-Bibliothek bearbeitet.</p><textarea id="generated" readonly></textarea><div class="row"><button id="copyCode">Code kopieren</button><button id="downloadCode">.js exportieren</button><button id="rebuild">Neu generieren</button></div></div></section>
 <section id="view-legacy" class="section"><div class="panel"><h2>Legacy-Strudel-Komposition</h2><p class="hint">Original-Code aus v0.4.7. Play im Legacy-Modus evaluiert diesen Code unverändert. Änderungen können als Code bearbeitet werden, werden aber nicht automatisch in Tracks und Clips zerlegt. Nur vertrauenswürdigen Code ausführen.</p><label><input type="checkbox" id="legacyMode"> Legacy-Code statt strukturiertem Arrangement abspielen</label><textarea id="legacySource"></textarea><div class="row"><button id="applyLegacy">Legacy-Code übernehmen</button><button id="downloadLegacy">Legacy .js exportieren</button></div></div></section>
 <section id="view-diagnostics" class="section"><div class="panel"><h2>Audio-Diagnose</h2><p class="hint">Test A nutzt Web Audio direkt. Test B prüft die Strudel-Synthese. Test C prüft ein einzelnes Sample aus der gewählten Registry.</p><div class="row"><button id="testWeb">A · WebAudio</button><button id="testSynth">B · Strudel Sinus</button><button id="testSample">C · Sample bd</button></div><pre id="diag" class="hint"></pre></div></section>
-</main><aside class="right"><div class="panel"><h2>Mixer</h2><div id="mixer"></div></div><div class="panel"><h2>Audio & Projektstatus</h2><div id="errors"></div><p class="hint">Soundbank-Fehler werden angezeigt und blockieren den Start nicht mehr. Soundbanks werden beim ersten Audio-Start registriert. Danach ist für einen Wechsel ein Reload nötig. Samples werden bei Bedarf geladen; für echten Offline-Betrieb müssen die Audiodateien lokal verfügbar sein.</p><p class="hint">Studio-Tracks: Strudel Pattern.onTrigger meldet Scheduler-Events mit Audio-Zielzeit. Die UI zeichnet diese bei Erreichen der Ausgabezeit. Legacy-Modus verwendet weiterhin die geschätzte Position.</p><pre id="eventList">Noch keine Events</pre></div><div class="panel"><h2>Speicherung</h2><p class="hint">Autosave in localStorage (Prototyp). Projekt-JSON lässt sich importieren/exportieren. IndexedDB und Offline-Samplepakete folgen in der nächsten Iteration.</p></div></aside></div><footer>Strudel Studio v0.2.1 · Engine @strudel/web@1.3.0 · Quellbasis Performance Controller v0.4.7</footer>
+</main><aside class="right"><div class="panel"><h2>Mixer</h2><div id="mixer"></div></div><div class="panel"><h2>Audio & Projektstatus</h2><div id="errors"></div><p class="hint">Soundbank-Fehler werden angezeigt und blockieren den Start nicht mehr. Soundbanks werden beim ersten Audio-Start registriert. Danach ist für einen Wechsel ein Reload nötig. Samples werden bei Bedarf geladen; für echten Offline-Betrieb müssen die Audiodateien lokal verfügbar sein.</p><p class="hint">Studio-Tracks: Strudel Pattern.onTrigger meldet Scheduler-Events mit Audio-Zielzeit. Die UI zeichnet diese bei Erreichen der Ausgabezeit. Legacy-Modus verwendet weiterhin die geschätzte Position.</p><pre id="eventList">Noch keine Events</pre></div><div class="panel"><h2>Speicherung</h2><p class="hint">Autosave in localStorage (Prototyp). Projekt-JSON lässt sich importieren/exportieren. IndexedDB und Offline-Samplepakete folgen in der nächsten Iteration.</p></div></aside></div><footer>Strudel Studio v0.2.2 · Engine @strudel/web@1.3.0 · Quellbasis Performance Controller v0.4.7</footer>
 <script src="https://unpkg.com/@strudel/web@1.3.0"></script><script>
 'use strict';(()=>{
 const $=id=>document.getElementById(id);const deep=o=>JSON.parse(JSON.stringify(o));
@@ -44,7 +44,7 @@ function report(msg){$('status').textContent=msg}function err(e){$('errors').tex
 function enqueueAudio(work){const p=commandQueue.catch(()=>{}).then(work);commandQueue=p.catch(()=>{});return p}
 async function ensureEngine(){if(engineInitialized)return;if(typeof window.initStrudel!=='function')throw Error('Strudel-CDN nicht verfügbar. Online laden oder lokale Runtime einbinden.');const bank=$('bank').value;report('Audio-Engine initialisieren…');if(bank==='none')await window.initStrudel();else await window.initStrudel({prebake:async()=>{const names=bank==='complete'?['vcsl','dirt']:['dirt'];const failures=[];for(const name of names){try{await samples(BANK_URLS[name])}catch(e){failures.push(name+': '+String(e?.message||e));console.warn('Soundbank nicht geladen:',name,e)}}if(failures.length){$('errors').textContent='Soundbank-Warnung (Audio-Engine startet trotzdem):\n'+failures.join('\n')+'\nTipp: Bei Problemen „Nur Synth“ wählen und die Seite neu laden.';}}});if(typeof window.evaluate!=='function')throw Error('Strudel evaluate() nicht verfügbar');engineInitialized=true;$('bank').disabled=true;const ac=window.getAudioContext?.();if(ac?.state==='suspended')await ac.resume();report('Strudel Engine bereit · '+bank)}
 function patternExpr(p){if(p.type==='structured'){const steps=String(p.steps||'').padEnd(16,'.').slice(0,16).split('').map(x=>x==='x'?(p.sound||'bd'):'~').join(' ');return 's('+JSON.stringify(steps)+')'}return String(p.source||'silence').trim()||'silence'}
-function compile(){const total=Number(project.song.lengthCycles);if(!Number.isInteger(total)||total<1||total>1024)throw Error('Ungültige Song-Länge (1–1024 Cycles)');const lines=['// Generated by Strudel Studio v0.2.1','setcps('+Number(project.song.bpm/240).toFixed(9)+');'];const activeSolo=project.tracks.some(t=>t.solo);const voices=[];for(const [i,t] of project.tracks.entries()){const clips=project.clips.filter(c=>c.trackId===t.id).sort((a,b)=>a.startCycle-b.startCycle);let pos=0;const segments=[];for(const c of clips){if(!project.patterns.some(p=>p.id===c.patternId))throw Error('Pattern fehlt: '+c.patternId);if(c.startCycle<pos)throw Error('Überlappende Clips auf '+t.name+' sind in v0.1 nicht unterstützt');if(c.startCycle<0||c.lengthCycles<1||c.startCycle+c.lengthCycles>total)throw Error('Clip außerhalb des Songs: '+t.name);if(c.startCycle>pos)segments.push('['+(c.startCycle-pos)+', silence]');const p=project.patterns.find(p=>p.id===c.patternId);segments.push('['+c.lengthCycles+', ('+patternExpr(p)+')]');pos=c.startCycle+c.lengthCycles}if(pos<total)segments.push('['+(total-pos)+', silence]');if(!segments.length)continue;const gain=t.mute||(activeSolo&&!t.solo)?0:Number(t.gain)*master;lines.push('const track_'+i+' = arrange(\n  '+segments.join(',\n  ')+'\n).postgain('+gain.toFixed(5)+').onTrigger((hap, now, cps, targetTime) => window.__studioTrigger('+JSON.stringify(t.id)+', hap, now, cps, targetTime), false);');voices.push('track_'+i)}lines.push('$: '+(voices.length?'stack('+voices.join(', ')+')':'silence')+';');return lines.join('\n')}
+function compile(){const total=Number(project.song.lengthCycles);if(!Number.isInteger(total)||total<1||total>1024)throw Error('Ungültige Song-Länge (1–1024 Cycles)');const lines=['// Generated by Strudel Studio v0.2.2','setcps('+Number(project.song.bpm/240).toFixed(9)+');'];const activeSolo=project.tracks.some(t=>t.solo);const voices=[];for(const [i,t] of project.tracks.entries()){const clips=project.clips.filter(c=>c.trackId===t.id).sort((a,b)=>a.startCycle-b.startCycle);let pos=0;const segments=[];for(const c of clips){if(!project.patterns.some(p=>p.id===c.patternId))throw Error('Pattern fehlt: '+c.patternId);if(c.startCycle<pos)throw Error('Überlappende Clips auf '+t.name+' sind in v0.1 nicht unterstützt');if(c.startCycle<0||c.lengthCycles<1||c.startCycle+c.lengthCycles>total)throw Error('Clip außerhalb des Songs: '+t.name);if(c.startCycle>pos)segments.push('['+(c.startCycle-pos)+', silence]');const p=project.patterns.find(p=>p.id===c.patternId);segments.push('['+c.lengthCycles+', ('+patternExpr(p)+')]');pos=c.startCycle+c.lengthCycles}if(pos<total)segments.push('['+(total-pos)+', silence]');if(!segments.length)continue;const gain=t.mute||(activeSolo&&!t.solo)?0:Number(t.gain)*master;lines.push('const track_'+i+' = arrange(\n  '+segments.join(',\n  ')+'\n).postgain('+gain.toFixed(5)+').onTrigger((hap, now, cps, targetTime) => window.__studioTrigger('+JSON.stringify(t.id)+', hap, now, cps, targetTime), false);');voices.push('track_'+i)}lines.push('$: '+(voices.length?'stack('+voices.join(', ')+')':'silence')+';');return lines.join('\n')}
 function prepareEventPatterns(){
   eventPatterns.clear();eventQueryErrors.clear();
   if(project.legacy?.enabled)return;
@@ -83,6 +83,7 @@ function uid(prefix){return prefix+'-'+Math.random().toString(36).slice(2,10)}fu
 const scheduledEvents=[];
 let schedulerEventsReceived=0, schedulerLastCycle=0, schedulerLastEvent=null;
 let schedulerFirstContext=null, schedulerFirstCycle=null, schedulerCallbackError='';
+let schedulerAnchor=null, schedulerAnchorCycle=null, schedulerVisualPosition=-1, schedulerVisualStep=-1;
 window.__studioTrigger=function(trackId,hap,now,cps,targetTime){
   try{
     if(!playing || project.legacy?.enabled)return;
@@ -97,6 +98,9 @@ window.__studioTrigger=function(trackId,hap,now,cps,targetTime){
     if(scheduledEvents.length>1024)scheduledEvents.splice(0,scheduledEvents.length-1024);
     schedulerEventsReceived++;
     if(schedulerFirstContext===null){schedulerFirstContext=target;schedulerFirstCycle=begin;}
+    // A callback gives an actual scheduled audio time and musical cycle position.
+    // Use it to anchor a continuous playhead, including silent steps.
+    if(schedulerAnchor===null){schedulerAnchor=target;schedulerAnchorCycle=begin;}
   }catch(e){schedulerCallbackError=String(e?.message||e);}
 };
 function audioOutputTime(){
@@ -106,43 +110,59 @@ function audioOutputTime(){
   }
   return ac.currentTime;
 }
-function resetSchedulerVisual(){scheduledEvents.length=0;schedulerEventsReceived=0;schedulerLastCycle=0;schedulerLastEvent=null;schedulerFirstContext=null;schedulerFirstCycle=null;schedulerCallbackError='';}
+function resetSchedulerVisual(){scheduledEvents.length=0;schedulerEventsReceived=0;schedulerLastCycle=0;schedulerLastEvent=null;schedulerFirstContext=null;schedulerFirstCycle=null;schedulerCallbackError='';schedulerAnchor=null;schedulerAnchorCycle=null;schedulerVisualPosition=-1;schedulerVisualStep=-1;}
 function drawSchedulerEvents(){
   const now=audioOutputTime();if(now===null)return false;
-  // Wait until callbacks have actually arrived; never claim callback sync without them.
-  if(!schedulerEventsReceived){$('timingQuality').textContent='Scheduler: warte auf onTrigger';return false;}
+  if(!schedulerEventsReceived || schedulerAnchor===null){$('timingQuality').textContent='Scheduler: warte auf onTrigger';return false;}
   const cutoff=now-visualOffsetMs/1000;
+  const bpm=Number(project.song.bpm)||94;
+  const cycleDuration=240/bpm;
+  const songLength=Math.max(1,Number(project.song.lengthCycles)||16);
+  // Continuous playhead from a real scheduler anchor, NOT from the last hit.
+  const rawCycle=schedulerAnchorCycle+(cutoff-schedulerAnchor)/cycleDuration;
+  const cycle=((rawCycle%songLength)+songLength)%songLength;
+  const index=Math.floor(cycle),step=Math.min(15,Math.floor((cycle-index)*16));
+  const block=Math.floor(index/4);
   const due=[];
+  scheduledEvents.sort((a,b)=>a.target-b.target);
   while(scheduledEvents.length&&scheduledEvents[0].target<=cutoff+0.003){
     const e=scheduledEvents.shift();if(e.generation===generation)due.push(e);
   }
-  if(due.length){
-    const e=due[due.length-1];schedulerLastEvent=e;schedulerLastCycle=e.cycle;
-    const songLength=Math.max(1,Number(project.song.lengthCycles)||16);
-    const cycle=((e.cycle%songLength)+songLength)%songLength;
-    const index=Math.floor(cycle),step=Math.min(15,Math.floor((cycle-index)*16));
-    const block=Math.floor(index/4);
+  // The playhead advances even if there are no new events in the current step.
+  if(index!==schedulerVisualPosition||step!==schedulerVisualStep){
+    schedulerVisualPosition=index;schedulerVisualStep=step;
     document.querySelectorAll('.playhead,.playhead-column,.clip-playing,.track-playing,.pattern-playing').forEach(el=>el.classList.remove('playhead','playhead-column','clip-playing','track-playing','pattern-playing'));
     document.querySelectorAll('[data-cycle-block="'+block+'"]').forEach(el=>el.classList.add('playhead-column'));
-    for(const ev of due){
-      const track=project.tracks.find(t=>t.id===ev.trackId);
-      if(!track)continue;
+    const cell=document.querySelector('#stepGrid .step[data-step="'+step+'"]');
+    if(cell)cell.classList.add('playhead');
+    const activeSolo=project.tracks.some(t=>t.solo);
+    for(const track of project.tracks){
+      if(track.mute||(activeSolo&&!track.solo)||Number(track.gain)<=0)continue;
       const clip=project.clips.find(c=>c.trackId===track.id&&index>=c.startCycle&&index<c.startCycle+c.lengthCycles);
       if(!clip)continue;
       document.querySelectorAll('[data-track-id="'+track.id+'"]').forEach(el=>el.classList.add('track-playing'));
       document.querySelector('.timeline td[data-track-id="'+track.id+'"][data-cycle-block="'+block+'"]')?.classList.add('clip-playing');
       document.querySelector('#patternList button[data-pattern-id="'+clip.patternId+'"]')?.classList.add('pattern-playing');
-      if(clip.patternId===selectedPattern){
-        const cell=document.querySelector('#stepGrid .step[data-step="'+step+'"]');
-        if(cell){cell.classList.add('playhead');cell.classList.remove('event-flash');void cell.offsetWidth;cell.classList.add('event-flash');}
-      }
     }
     $('clock').textContent='Cycle '+(index+1)+' · Step '+(step+1)+'/16';
+  }
+  // Only actual onTrigger callbacks may flash a note/event.
+  if(due.length){
+    schedulerLastEvent=due[due.length-1];schedulerLastCycle=schedulerLastEvent.cycle;
+    for(const ev of due){
+      const eventCycle=((ev.cycle%songLength)+songLength)%songLength;
+      const eventIndex=Math.floor(eventCycle);
+      const eventStep=Math.min(15,Math.floor((eventCycle-eventIndex)*16));
+      const clip=project.clips.find(c=>c.trackId===ev.trackId&&eventIndex>=c.startCycle&&eventIndex<c.startCycle+c.lengthCycles);
+      if(clip?.patternId===selectedPattern){
+        const cell=document.querySelector('#stepGrid .step[data-step="'+eventStep+'"]');
+        if(cell){cell.classList.remove('event-flash');void cell.offsetWidth;cell.classList.add('event-flash');cell.addEventListener('animationend',()=>cell.classList.remove('event-flash'),{once:true});}
+      }
+    }
     $('playbackInfo').textContent='Scheduler: '+due.slice(-5).map(x=>(project.tracks.find(t=>t.id===x.trackId)?.name||x.trackId)+' · '+x.label).join(' | ');
     $('eventList').textContent=('Cycle '+(index+1)+' · '+due.map(x=>x.label).join(', ')+'\n'+$('eventList').textContent).slice(0,4500);
   }
-  $('timingQuality').textContent='Strudel onTrigger · '+schedulerEventsReceived+' Events'+(schedulerCallbackError?' · '+schedulerCallbackError:'');
-  // Use the scheduler's callback-driven path exclusively once events exist.
+  $('timingQuality').textContent='Strudel onTrigger · '+schedulerEventsReceived+' Events · kontinuierlicher Playhead'+(schedulerCallbackError?' · '+schedulerCallbackError:'');
   return true;
 }
 let visualFrame=0, visualCycle=-1, visualStep=-1, visualLegacy=false;
