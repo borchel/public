@@ -1,19 +1,18 @@
-# Strudel Studio v0.3.0 — Step-Sequencer
+# Strudel Studio v0.3.2
 
-## Neu
-- 16, 32 oder 64 Steps je Cycle für strukturierte Patterns.
-- Pro Step ein Velocity-Wert (0–100 %), umgesetzt als Strudel `.gain()`-Pattern.
-- Pattern duplizieren und Steps löschen.
-- Rechtsklick auf einen Step öffnet dessen Velocity-Einstellung; normaler Klick schaltet den Step um.
-- Der Scheduler-Playhead berücksichtigt die ausgewählte Pattern-Auflösung; Event-Highlights verwenden ebenfalls die Auflösung.
-- Bestehende Projekte ohne `stepCount` oder `velocities` werden mit 16 Steps und 100 % Velocity weiterverwendet.
+## Neues Datenmodell
+- Instrumentenbibliothek unabhängig von Patterns (Sound/Synth, Gain, LPF).
+- Structured Patterns enthalten Rhythmus, Velocity und Tonhöhe pro Step.
+- Umschaltbare Step- und Piano-Roll-Ansicht; Piano-Roll erlaubt das Ein- und Ausschalten von Noten.
+- Der Compiler kombiniert Pattern + Instrument + Track + Arrangement.
+- Bestehende Projekt-JSONs werden beim Laden migriert; die bekannte Demo-Bassfigur wird strukturiert. Beliebiger Code bleibt als Code erhalten, um Informationsverlust zu vermeiden.
+- Legacy Mare Magnetica bleibt unverändert.
 
-## Test
-1. Demo starten, Pattern Kick auswählen.
-2. Auf 32 oder 64 Steps umstellen, zusätzliche Anschläge setzen.
-3. Rechtsklick auf einen aktiven Step, Velocity reduzieren.
-4. Kontrollieren, ob der Playhead über alle Steps läuft.
-5. Pattern duplizieren und als Variante bearbeiten.
+## Grenzen
+- Die Piano-Roll unterstützt derzeit eine Note pro Step und keine unabhängig einstellbare Notenlänge.
+- Komplexe freie Strudel-Code-Patterns werden nicht automatisch konvertiert.
+- Die Live-Visualisierung und Audio-Scheduler-Anbindung stammen aus v0.3.1.
+- Browser-Audiofunktion ist nicht automatisiert verifiziert.
 
-## Hinweise
-Das Pattern-Grid beschreibt weiterhin einen Cycle. Bei 64 Steps entspricht ein Step einem 64stel eines Cycles. Die Bearbeitung eines Patterns während der Wiedergabe startet den Strudel-Playback aktuell neu. Ein Piano-Roll, Probability, Ratchets und Microtiming sind noch nicht umgesetzt. Die Runtime und die Soundbank-Initialisierung wurden nicht verändert. Browser-Audio wurde hier nicht verifiziert.
+## Start
+index.html in einem lokalen Webserver öffnen; Runtime und Samples benötigen Internet.
