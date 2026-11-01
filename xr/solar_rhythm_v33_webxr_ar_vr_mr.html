@@ -1,0 +1,1141 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Solar Rhythm v33.0 — Endlosschleife</title><style>
+html,body{margin:0;width:100%;height:100%;background:#08050e;color:#eee;font:14px system-ui;overflow:hidden}
+body{display:flex;flex-direction:column;min-height:0}
+#stage{flex:1 1 auto;min-height:160px;width:100%;position:relative;overflow:hidden}
+#stage canvas{display:block;width:100%;height:100%}
+#transport{display:flex;align-items:center;gap:10px;padding:8px 14px;background:#201727;border-top:1px solid #ffffff25;flex:0 0 auto;min-height:44px;box-sizing:border-box}
+#transport button{width:40px;height:36px;flex:0 0 40px;padding:0;display:grid;place-items:center;font-size:18px;line-height:1}
+#transport button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#transport #seek{flex:1;min-width:35px;width:auto;margin:0}
+#transportTime{font-size:12px;color:#ddd;font-variant-numeric:tabular-nums;white-space:nowrap;min-width:80px;text-align:right}
+@media(max-width:600px){#transport{gap:7px;padding:7px 9px}#transport button{width:34px;flex-basis:34px;height:34px}#transportTime{font-size:11px;min-width:68px}}
+#ui{position:relative;flex:0 0 auto;box-sizing:border-box;width:100%;background:#15101d;border-top:1px solid #ffffff30;padding:9px 16px;z-index:2}
+#panelHead{display:flex;align-items:center;gap:12px}
+#panelToggle{padding:8px 13px;background:#37283d;color:#fff;white-space:nowrap}
+#miniStatus{font-size:12px;color:#ddd}
+#panelBody{max-height:min(55vh,530px);overflow:auto;margin-top:10px}
+#ui.collapsed #panelBody{display:none}
+#mixer{margin:14px 0 8px;padding:12px;border:1px solid #57465e;border-radius:10px;background:#211729}
+.mixer-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+#mixerReset{font-size:11px;padding:6px 9px}
+.mixer-grid{display:grid;grid-template-columns:minmax(80px,1fr) minmax(95px,1.6fr) minmax(100px,1.5fr) 32px 32px;align-items:center;gap:7px 9px}
+.sample-picker{display:flex;align-items:center;gap:4px;min-width:0}.sample-picker select{width:100%;min-width:0;padding:5px 2px;font-size:12px}.sample-preview{padding:5px 8px;font-size:12px;flex:none}.mixer-head{font-size:11px;color:#b9a9c1;font-weight:bold}
+.mixer-grid>label{font-size:12px}
+.mixer-gain{display:flex;align-items:center;gap:5px;min-width:0}
+.mixer-gain input{flex:1;min-width:20px;margin:0}
+.mixer-gain output{width:37px;font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
+.mix-check{text-align:center}.mix-check input{width:17px;height:17px;accent-color:#ffa34a}
+
+#ui button{touch-action:manipulation}
+button{background:#e87931;color:#160d09;border:0;padding:9px 14px;border-radius:7px;font-weight:bold;cursor:pointer}
+input[type=range]{width:100%;accent-color:#f79d4a}small{opacity:.7}#status{margin:8px 0}
+@media(max-width:600px){#ui{padding:7px 10px}#panelBody{max-height:55vh}}
+#xrControls{padding:12px;margin-bottom:12px;border:1px solid #63506c;border-radius:10px;background:#20182b}
+.xr-buttons{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.xr-buttons button{font-size:12px;padding:8px 10px}
+#xrStatus{display:block;color:#c8b4d0;font-size:11px}
+</style></head><body><div id="stage" aria-label="3D-Film"></div><div id="transport" role="group" aria-label="Filmtransport"><button id="play" type="button" title="Start / Fortsetzen" aria-label="Start / Fortsetzen">▶</button><button id="pause" type="button" title="Pause" aria-label="Pause">❚❚</button><button id="stop" type="button" title="Stopp / Zurücksetzen" aria-label="Stopp / Zurücksetzen">■</button><input id="seek" type="range" min="0" max="240" step="0.01" value="0" aria-label="Filmposition"><span id="transportTime">0:00 / 4:00</span></div><div id="ui" class="collapsed"><div id="panelHead"><button id="panelToggle" type="button" aria-expanded="false" aria-controls="panelBody" title="Steuerung ein-/ausblenden">☰ Steuerung</button><span id="miniStatus">Solar Rhythm v33.0 · 240 s</span></div><div id="panelBody"><div id="xrControls"><strong>Darstellung</strong><div class="xr-buttons"><button type="button" data-mode="desktop">Desktop-Film</button><button type="button" data-mode="ar">Smartphone AR</button><button type="button" data-mode="vr">Quest VR</button><button type="button" data-mode="mr">Quest MR</button></div><small id="xrStatus">XR benötigt HTTPS, einen kompatiblen Browser und eine Gerätefreigabe.</small></div><b>SOLAR RHYTHM <span style="color:#ffa653">v33.0</span></b><div id="status">0.00 / 240.00 s</div><label style="display:block;margin:8px 0">Qualität <select id="quality"><option value="1">Normal</option><option value="1.5" selected>Hoch</option><option value="2">Ultra</option></select></label><label style="display:block;margin:10px 0">Filmgeschwindigkeit <strong id="speedLabel">1,00×</strong><input id="speed" type="range" min="0" max="2" step="0.05" value="1"></label><label style="display:block;margin:6px 0"><input id="loopEnabled" type="checkbox" checked style="width:auto"> Endlosschleife (20 s Übergang)</label><small>V32.0 · 200-s-Schleife · 20-s-Übergang · 12-teilige Samba-Reggae-Suite · 110–140 BPM · 180 s Musik + 60 s Finale · Riser + Unisono-Explosion · 12 Percussionisten · 0–2× Filmtempo</small><p><label><input id="sound" type="checkbox" checked style="width:auto"> Strudel-Samplegroove</label></p><label>Musiklautstärke <input id="volume" type="range" min="0" max="1" step="0.05" value="0.8"></label><section id="mixer" aria-label="Instrumentenmixer"><div class="mixer-title"><strong>Instrumentenmixer</strong><button id="mixerReset" type="button">Mixer zurücksetzen</button></div><div class="mixer-grid"><div class="mixer-head">Kanal</div><div class="mixer-head">Sample / Test</div><div class="mixer-head">Lautstärke</div><div class="mixer-head">Solo</div><div class="mixer-head">Mute</div><label for="mix-surdo-fundo">Surdo Fundo</label><div class="sample-picker"><select id="sample-surdo-fundo" data-sample="surdo-fundo" aria-label="surdo-fundo Sample"><option value="">Standard</option><option value="bd">bd</option><option value="lt">lt</option><option value="mt">mt</option><option value="ht">ht</option><option value="drum">drum</option><option value="808">808</option></select><button type="button" class="sample-preview" data-preview="surdo-fundo" title="Sample vorhören" aria-label="surdo-fundo Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-surdo-fundo" data-mix="surdo-fundo" type="range" min="0" max="10" value="5" step="0.1" aria-label="Surdo Fundo Lautstärke"><output id="mixout-surdo-fundo">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="surdo-fundo" aria-label="Surdo Fundo Solo"></label><label class="mix-check"><input type="checkbox" data-mute="surdo-fundo" aria-label="Surdo Fundo Mute"></label><label for="mix-surdo-resposta">Surdo Resposta</label><div class="sample-picker"><select id="sample-surdo-resposta" data-sample="surdo-resposta" aria-label="surdo-resposta Sample"><option value="">Standard</option><option value="bd">bd</option><option value="lt">lt</option><option value="mt">mt</option><option value="ht">ht</option><option value="drum">drum</option></select><button type="button" class="sample-preview" data-preview="surdo-resposta" title="Sample vorhören" aria-label="surdo-resposta Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-surdo-resposta" data-mix="surdo-resposta" type="range" min="0" max="10" value="5" step="0.1" aria-label="Surdo Resposta Lautstärke"><output id="mixout-surdo-resposta">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="surdo-resposta" aria-label="Surdo Resposta Solo"></label><label class="mix-check"><input type="checkbox" data-mute="surdo-resposta" aria-label="Surdo Resposta Mute"></label><label for="mix-surdo-dobra">Surdo Dobra</label><div class="sample-picker"><select id="sample-surdo-dobra" data-sample="surdo-dobra" aria-label="surdo-dobra Sample"><option value="">Standard</option><option value="bd">bd</option><option value="lt">lt</option><option value="mt">mt</option><option value="ht">ht</option><option value="drum">drum</option></select><button type="button" class="sample-preview" data-preview="surdo-dobra" title="Sample vorhören" aria-label="surdo-dobra Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-surdo-dobra" data-mix="surdo-dobra" type="range" min="0" max="10" value="5" step="0.1" aria-label="Surdo Dobra Lautstärke"><output id="mixout-surdo-dobra">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="surdo-dobra" aria-label="Surdo Dobra Solo"></label><label class="mix-check"><input type="checkbox" data-mute="surdo-dobra" aria-label="Surdo Dobra Mute"></label><label for="mix-timbau">Timbau</label><div class="sample-picker"><select id="sample-timbau" data-sample="timbau" aria-label="timbau Sample"><option value="">Standard</option><option value="tabla">tabla</option><option value="co">co</option><option value="perc">perc</option><option value="drum">drum</option><option value="conga">conga</option></select><button type="button" class="sample-preview" data-preview="timbau" title="Sample vorhören" aria-label="timbau Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-timbau" data-mix="timbau" type="range" min="0" max="10" value="5" step="0.1" aria-label="Timbau Lautstärke"><output id="mixout-timbau">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="timbau" aria-label="Timbau Solo"></label><label class="mix-check"><input type="checkbox" data-mute="timbau" aria-label="Timbau Mute"></label><label for="mix-caixa">Caixa</label><div class="sample-picker"><select id="sample-caixa" data-sample="caixa" aria-label="caixa Sample"><option value="">Standard</option><option value="sd">sd</option><option value="sn">sn</option><option value="gretsch">gretsch</option><option value="drum">drum</option><option value="cp">cp</option></select><button type="button" class="sample-preview" data-preview="caixa" title="Sample vorhören" aria-label="caixa Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-caixa" data-mix="caixa" type="range" min="0" max="10" value="5" step="0.1" aria-label="Caixa Lautstärke"><output id="mixout-caixa">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="caixa" aria-label="Caixa Solo"></label><label class="mix-check"><input type="checkbox" data-mute="caixa" aria-label="Caixa Mute"></label><label for="mix-repinique">Repinique</label><div class="sample-picker"><select id="sample-repinique" data-sample="repinique" aria-label="repinique Sample"><option value="">Standard</option><option value="cp">cp</option><option value="rim">rim</option><option value="sd">sd</option><option value="perc">perc</option><option value="drum">drum</option></select><button type="button" class="sample-preview" data-preview="repinique" title="Sample vorhören" aria-label="repinique Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-repinique" data-mix="repinique" type="range" min="0" max="10" value="5" step="0.1" aria-label="Repinique Lautstärke"><output id="mixout-repinique">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="repinique" aria-label="Repinique Solo"></label><label class="mix-check"><input type="checkbox" data-mute="repinique" aria-label="Repinique Mute"></label><label for="mix-tamborim">Tamborim</label><div class="sample-picker"><select id="sample-tamborim" data-sample="tamborim" aria-label="tamborim Sample"><option value="">Standard</option><option value="rim">rim</option><option value="tink">tink</option><option value="perc">perc</option><option value="metal">metal</option><option value="cp">cp</option></select><button type="button" class="sample-preview" data-preview="tamborim" title="Sample vorhören" aria-label="tamborim Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-tamborim" data-mix="tamborim" type="range" min="0" max="10" value="5" step="0.1" aria-label="Tamborim Lautstärke"><output id="mixout-tamborim">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="tamborim" aria-label="Tamborim Solo"></label><label class="mix-check"><input type="checkbox" data-mute="tamborim" aria-label="Tamborim Mute"></label><label for="mix-hi-hat">Hi-Hat</label><div class="sample-picker"><select id="sample-hi-hat" data-sample="hi-hat" aria-label="hi-hat Sample"><option value="">Standard</option><option value="hh">hh</option><option value="sh">sh</option><option value="tink">tink</option><option value="metal">metal</option></select><button type="button" class="sample-preview" data-preview="hi-hat" title="Sample vorhören" aria-label="hi-hat Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-hi-hat" data-mix="hi-hat" type="range" min="0" max="10" value="5" step="0.1" aria-label="Hi-Hat Lautstärke"><output id="mixout-hi-hat">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="hi-hat" aria-label="Hi-Hat Solo"></label><label class="mix-check"><input type="checkbox" data-mute="hi-hat" aria-label="Hi-Hat Mute"></label><label for="mix-claps">Claps</label><div class="sample-picker"><select id="sample-claps" data-sample="claps" aria-label="claps Sample"><option value="">Standard</option><option value="cp">cp</option><option value="sd">sd</option><option value="perc">perc</option><option value="gretsch">gretsch</option></select><button type="button" class="sample-preview" data-preview="claps" title="Sample vorhören" aria-label="claps Sample vorhören">▶</button></div><div class="mixer-gain"><input id="mix-claps" data-mix="claps" type="range" min="0" max="10" value="5" step="0.1" aria-label="Claps Lautstärke"><output id="mixout-claps">5.0</output></div><label class="mix-check"><input type="checkbox" data-solo="claps" aria-label="Claps Solo"></label><label class="mix-check"><input type="checkbox" data-mute="claps" aria-label="Claps Mute"></label></div><small>Sample: Klangquelle pro Kanal auswählen und mit ▶ vorhören (unterbricht die Musik kurz). Solo: Nur ausgewählte Kanäle hörbar. Mute hat Vorrang. Skala 0–10: 5 = 100 % des Kanal-Grundpegels, 10 = 200 %. Repinique, Caixa, Hi-Hat und Claps haben halbierten Grundpegel. Sample- und Mixeränderungen werden während der Wiedergabe übernommen.</small></section><div id="musicStatus" style="font-size:12px;color:#ffc37e;margin-top:7px">Audio startet nach Klick auf Abspielen · Internet erforderlich</div></div></div><script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script><script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+const panel=document.getElementById('ui');
+const panelToggle=document.getElementById('panelToggle');
+panelToggle.addEventListener('click',()=>{const collapsed=panel.classList.toggle('collapsed');panelToggle.setAttribute('aria-expanded',String(!collapsed));});
+const stage=document.getElementById('stage');const viewport=()=>({w:Math.max(1,stage.clientWidth),h:Math.max(1,stage.clientHeight)});const scene=new THREE.Scene();scene.background=new THREE.Color(0x08050e);scene.fog=new THREE.FogExp2(0x08050e,.015);
+const camera=new THREE.PerspectiveCamera(46,viewport().w/viewport().h,.1,250);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setSize(viewport().w,viewport().h);renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;stage.appendChild(renderer.domElement);renderer.domElement.style.cssText="position:absolute;inset:0;width:100%;height:100%;";
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(viewport().w,viewport().h),.85,.48,.78);
+composer.addPass(bloom);
+// Independent second output surface for genuine simultaneous crossfade.
+const nextRenderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance',alpha:true});
+nextRenderer.setSize(viewport().w,viewport().h);nextRenderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+nextRenderer.outputColorSpace=THREE.SRGBColorSpace;nextRenderer.toneMapping=THREE.ACESFilmicToneMapping;
+nextRenderer.domElement.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;';
+stage.appendChild(nextRenderer.domElement);
+const nextComposer=new EffectComposer(nextRenderer);nextComposer.addPass(new RenderPass(scene,camera));
+const nextBloom=new UnrealBloomPass(new THREE.Vector2(viewport().w,viewport().h),.85,.48,.78);nextComposer.addPass(nextBloom);
+let activeComposer=composer;
+renderer.xr.enabled=true;
+let xrMode='desktop',xrSession=null;
+const originalSceneBackground=scene.background,originalSceneFog=scene.fog;
+const xrStatus=document.getElementById('xrStatus');
+const xrButtons=[...document.querySelectorAll('[data-mode]')];
+function setXRStatus(message){xrStatus.textContent=message}
+function updateXRLayout(){
+ const immersive=xrMode!=='desktop';
+ nextRenderer.domElement.style.display=immersive?'none':'';
+ scene.background=(xrMode==='ar'||xrMode==='mr')?null:originalSceneBackground;
+ scene.fog=immersive?null:originalSceneFog;
+ // Camera motion in VR/MR is owned by the headset, never by the film orbit.
+ if(immersive){
+  scene.scale.setScalar(xrMode==='vr'?.42:.12);
+  scene.position.set(0,xrMode==='vr'?-0.55:-.15,xrMode==='vr'?-7:-2.1);
+ }else{
+  scene.scale.setScalar(1);scene.position.set(0,0,0);
+ }
+ for(const button of xrButtons)button.setAttribute('aria-pressed',String(button.dataset.mode===xrMode));
+}
+async function endXR(){
+ if(xrSession){const session=xrSession;xrSession=null;await session.end().catch(()=>{});}
+ xrMode='desktop';updateXRLayout();setXRStatus('Desktop-Film aktiv');
+}
+async function beginXR(mode){
+ if(mode==='desktop'){await endXR();return}
+ if(!navigator.xr){setXRStatus('WebXR ist in diesem Browser nicht verfügbar. Quest Browser bzw. AR-kompatibles Android verwenden.');return}
+ const type=mode==='vr'?'immersive-vr':'immersive-ar';
+ try{
+  if(!await navigator.xr.isSessionSupported(type)){setXRStatus(type+' wird auf diesem Gerät/Browser nicht unterstützt.');return}
+  if(xrSession)await endXR();
+  const options=type==='immersive-ar'?{requiredFeatures:['local'],optionalFeatures:['dom-overlay'],domOverlay:{root:document.body}}:{optionalFeatures:['local-floor']};
+  const session=await navigator.xr.requestSession(type,options);
+  xrSession=session;xrMode=mode;
+  session.addEventListener('end',()=>{if(xrSession===session){xrSession=null;xrMode='desktop';updateXRLayout();setXRStatus('XR-Sitzung beendet')}} ,{once:true});
+  await renderer.xr.setSession(session);
+  updateXRLayout();
+  setXRStatus(mode==='vr'?'Quest VR aktiv – Kopfbewegungen steuern den Blick.':'AR/MR aktiv – Szene schwebt vor dir. Positionierung ist derzeit fest.');
+ }catch(err){xrMode='desktop';updateXRLayout();setXRStatus('XR-Start fehlgeschlagen: '+err.message);console.error(err)}
+}
+for(const button of xrButtons)button.addEventListener('click',()=>beginXR(button.dataset.mode));
+updateXRLayout();
+
+scene.add(new THREE.HemisphereLight(0x7774ba,0x27110d,2));const key=new THREE.PointLight(0xffa34b,90,30);key.position.set(-5,6,5);scene.add(key);
+const clamp=(x)=>Math.max(0,Math.min(1,x)),smooth=(a,b,t)=>{let x=clamp((t-a)/(b-a));return x*x*(3-2*x)};
+const musicians=[];
+const floatingDrums=[];
+const amber=new THREE.MeshStandardMaterial({color:0xe6a35d,metalness:.65,roughness:.23,emissive:0xff3a04,emissiveIntensity:.45,transparent:true,opacity:1});
+const membranes=new THREE.MeshStandardMaterial({color:0xf3d6a0,roughness:.83,side:THREE.DoubleSide});
+const band=new THREE.MeshStandardMaterial({color:0x24111b,roughness:.87});
+
+const magmaMaterial=new THREE.MeshStandardMaterial({color:0xff701b,emissive:0xff4d08,emissiveIntensity:2.4,metalness:.55,roughness:.24});
+const tendrilMaterial=new THREE.MeshBasicMaterial({color:0xffae3c,transparent:true,opacity:.78,blending:THREE.AdditiveBlending,depthWrite:false});
+const tendrils=[];const skin=new THREE.MeshStandardMaterial({color:0xa36c51,roughness:.72});const shirtColors=Array(12).fill(0xc31d29);const metal=new THREE.MeshStandardMaterial({color:0xd39a55,metalness:.8,roughness:.26});const drumMat=new THREE.MeshStandardMaterial({color:0x9a432b,metalness:.35,roughness:.4});
+function mesh(parent,geometry,material,pos,scale){let o=new THREE.Mesh(geometry,material);if(pos)o.position.set(...pos);if(scale)o.scale.set(...scale);parent.add(o);return o}
+const redCloth=new THREE.MeshStandardMaterial({color:0xc51e2a,roughness:.84});
+const whiteCloth=new THREE.MeshStandardMaterial({color:0xf1eee5,roughness:.88});
+const hairColors=[0x161113,0x31211a,0x100d10,0x4a2817,0x211715,0x171414,0x3c251b];
+const skinColors=[0x986348,0xc18a68,0x633d2f,0xc98e66,0x84553b,0xd0a07d,0x72462e];
+const drumTypes=['timbau','caixa','timbau','caixa','repinique','tamborim','repinique','tamborim','surdo-fundo','surdo-resposta','surdo-dobra','surdo-fundo'];
+const stickMaterial=new THREE.MeshStandardMaterial({color:0xd5a977,roughness:.7});
+const drumColors=[0x9e412b,0xb95b29,0x9cabb5,0x764c35,0xc5b8a3,0x96402b,0xaeb7bd];
+function addCylinder(parent,rt,rb,h,mat,pos,segments=24){return mesh(parent,new THREE.CylinderGeometry(rt,rb,h,segments),mat,pos)}
+const rotatingScene=new THREE.Group();scene.add(rotatingScene);
+for(let i=0;i<12;i++){
+ const g=new THREE.Group();
+ const row=Math.floor(i/4),col=i%4;
+ // Four musicians per row, spaced to allow instruments and gestures.
+ g.position.set((col-1.5)*2.05,0,2.9-row*3.05);
+ scene.add(g);
+ const female=i%2===1;
+ const skinMat=new THREE.MeshStandardMaterial({color:skinColors[i%skinColors.length],roughness:.8});
+ const hairMat=new THREE.MeshStandardMaterial({color:hairColors[i%hairColors.length],roughness:.93});
+ const scaleHeight=[1.03,.95,1.08,.99,1.04,.97,1.06][i%7];
+ const body=new THREE.Group();g.add(body);body.scale.y=scaleHeight;
+ // Distinct human silhouettes, red shirts, white trousers and shoes.
+ const hips=mesh(body,new THREE.SphereGeometry(.29,20,14),whiteCloth,[0,1.06,0],[1.05,.48,.76]);
+ addCylinder(body,female?.27:.34,female?.23:.29,.92,redCloth,[0,1.82,0]);
+ mesh(body,new THREE.SphereGeometry(.37,22,16),redCloth,[0,2.17,0],[female?1.00:1.14,.33,.67]);
+ addCylinder(body,.125,.135,.22,skinMat,[0,2.43,0]);
+ const face=mesh(body,new THREE.SphereGeometry(.29,28,20),skinMat,[0,2.72,.055],[female?.87:.96,1.13,.87]);
+ mesh(body,new THREE.SphereGeometry(.29,24,16),hairMat,[0,2.85,.025],[1.03,.52,1.03]);
+ if(female){mesh(body,new THREE.SphereGeometry(.26,20,16),hairMat,[0,2.61,-.20],[1.08,1.13,.68]);}
+ // Facial detail, two eyes, nose and mouth. Faces look toward drums (+Z).
+ for(const side of [-1,1]){
+  mesh(body,new THREE.SphereGeometry(.027,10,8),hairMat,[side*.115,2.75,.305]);
+  mesh(body,new THREE.SphereGeometry(.018,10,8),skinMat,[side*.105,2.59,.298]);
+ }
+ mesh(body,new THREE.SphereGeometry(.045,10,8),skinMat,[0,2.66,.32],[.8,1.25,.75]);
+ const smile=mesh(body,new THREE.BoxGeometry(.105,.012,.014),hairMat,[0,2.565,.303]);
+ for(const side of [-1,1]){
+  const leg=addCylinder(body,.14,.11,.87,whiteCloth,[side*.17,.57,0]);
+  const shoe=mesh(body,new THREE.BoxGeometry(.23,.15,.38),band,[side*.17,.11,.12]);
+ }
+ // Drum-specific shell proportions and construction.
+ const type=drumTypes[i];
+ const timbau=type==='timbau',caixa=type==='caixa',repi=type==='repinique',tamborim=type==='tamborim';
+ const radius=tamborim?.23:timbau?.31:caixa?.39:repi?.33:.48;
+ const height=tamborim?.085:timbau?1.04:caixa?.35:repi?.56:.78;
+ const d=new THREE.Group();d.position.set(0,tamborim?1.83:timbau?1.24:caixa?1.44:repi?1.36:1.12,.58);body.add(d);
+ const drumMatLocal=new THREE.MeshStandardMaterial({color:drumColors[i%drumColors.length],metalness:caixa?.68:.28,roughness:.38});
+ // Tamborim: shallow single-headed frame drum, held in one hand.
+ const shell=mesh(d,new THREE.CylinderGeometry(timbau?radius*.77:radius*.94,radius,height,32),drumMatLocal);
+ if(tamborim){
+   d.rotation.z=-.27;d.rotation.x=.45;
+   // Visible tamborim rim, skin and grip; no second drumhead.
+   mesh(d,new THREE.TorusGeometry(radius*.96,.026,8,40),metal,[0,height/2+.04,0]).rotation.x=Math.PI/2;
+   mesh(d,new THREE.CylinderGeometry(radius*.92,radius*.92,.014,40),membranes,[0,height/2+.047,0]);
+   mesh(d,new THREE.BoxGeometry(.10,.20,.11),band,[-radius-.07,0,0]);
+ }
+ for(const side of (tamborim?[-1]:[-1,1])){
+  addCylinder(d,radius*.94,radius*.94,.055,metal,[0,side*height/2,0],32);
+  addCylinder(d,radius*.91,radius*.91,.018,membranes,[0,side*(height/2+.04),0],32);
+ }
+ for(let j=0;j<10;j++){
+  const th=j*Math.PI/5;
+  addCylinder(d,.014,.014,height,metal,[Math.sin(th)*radius,0,Math.cos(th)*radius],8);
+  mesh(d,new THREE.BoxGeometry(.07,.08,.09),metal,[Math.sin(th)*radius,height*.42,Math.cos(th)*radius]);
+ }
+ if(caixa){for(let j=0;j<7;j++)addCylinder(d,.008,.008,radius*1.8,metal,[0,-height/2-.07,(j-3)*.075]);}
+ // Shoulder strap links the drum visually to the player's body.
+ const strap=mesh(body,new THREE.BoxGeometry(.065,.85,.055),band,[.18,1.92,.27]);strap.rotation.z=-.32;
+ const ghost=new THREE.Group();scene.add(ghost);
+ mesh(ghost,new THREE.CylinderGeometry(radius*.9,radius,height,32),amber);
+ for(const side of [-1,1])addCylinder(ghost,radius*.9,radius*.9,.045,metal,[0,side*height/2,0],32);
+ ghost.visible=false;floatingDrums.push({ghost,i,origin:g.position.clone()});
+ const limbs=[];
+ const limbGeo=new THREE.CylinderGeometry(1,1,1,12);
+ for(const side of [-1,1]){
+  const upper=mesh(body,limbGeo,redCloth),forearm=mesh(body,limbGeo,skinMat);
+  const hand=mesh(body,new THREE.SphereGeometry(.095,14,10),skinMat);
+  const elbowJoint=mesh(body,new THREE.SphereGeometry(.10,12,10),skinMat);
+  const stick=mesh(body,limbGeo,stickMaterial);
+  const tip=mesh(body,new THREE.SphereGeometry(.045,10,8),membranes);
+  limbs.push({side,upper,forearm,hand,elbowJoint,stick,tip});
+ }
+ // Individual red transformation core, linked to the player and their instrument.
+ const redMeltMat=new THREE.MeshStandardMaterial({color:0x9e0012,emissive:0xff0018,emissiveIntensity:1.5,roughness:.28,metalness:.2,transparent:true,opacity:.0});
+ const molten=mesh(body,new THREE.IcosahedronGeometry(.65,4),redMeltMat,[0,1.75,.25]);molten.visible=false;
+ const drumMelt=mesh(d,new THREE.IcosahedronGeometry(radius*.85,3),redMeltMat.clone(),[0,0,0]);drumMelt.visible=false;
+ // Three-dimensional red corona rays around both individual fusion cores.
+ function makeRedRays(core, size, offset){
+  const rays=new THREE.Group();core.add(rays);
+  const count=8; // 28.6% of the original 28 filaments per player/drum core
+  for(let n=0;n<count;n++){
+   const a=n*2.399963229728653+offset;
+   const y=1-2*(n+.5)/count, r=Math.sqrt(1-y*y);
+   const direction=new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r);
+   const tangent=new THREE.Vector3(-Math.sin(a),0,Math.cos(a));
+   const pts=[];
+   for(let j=0;j<=12;j++){
+    const u=j/12;
+    pts.push(direction.clone().multiplyScalar(size*(.9+1.55*u))
+      .addScaledVector(tangent,size*1.1*Math.sin(u*Math.PI*2.8+n)*u));
+   }
+   const curve=new THREE.CatmullRomCurve3(pts);
+   const mat=new THREE.MeshBasicMaterial({color:n%3===0?0xff0014:n%3===1?0xdb0010:0xff0025,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+   const filament=new THREE.Mesh(new THREE.TubeGeometry(curve,20,size*.024,6,false),mat);
+   filament.userData.isFilament=true;
+   rays.add(filament);
+   const haloMat=new THREE.MeshBasicMaterial({color:0xff0020,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+   const halo=new THREE.Mesh(new THREE.TubeGeometry(curve,20,size*.065,6,false),haloMat);
+   halo.userData.isHalo=true;
+   rays.add(halo);
+  }
+  return rays;
+ }
+ // Corona diameter ~5-6 units (about twice player height); independent of shrinking model.
+ const moltenRays=makeRedRays(rotatingScene,1.1,i*.35);
+ const drumRays=makeRedRays(rotatingScene,.85,i*.35+1.3);
+ moltenRays.visible=false;drumRays.visible=false;
+ musicians.push({g,body,d,i,base:g.position.clone(),limbs,molten,drumMelt,moltenRays,drumRays,type,female,skinMat});
+}
+const orb=new THREE.Group();scene.add(orb);const sunUniforms={uTime:{value:0},uPulse:{value:0},uPhase:{value:0}};
+const sun=new THREE.Mesh(new THREE.SphereGeometry(2.5,96,64),new THREE.ShaderMaterial({uniforms:sunUniforms,vertexShader:`uniform float uTime;uniform float uPulse;varying vec3 vP;varying vec3 vN;varying vec3 vView;
+float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+void main(){vP=position;vN=normal;float n=noise(position*2.4+vec3(uTime*.26,-uTime*.18,uTime*.13));float n2=noise(position*7.5-vec3(uTime*.6));vec3 p=position+normal*((n-.5)*.27+(n2-.5)*.065+uPulse*.09);vec4 mv=modelViewMatrix*vec4(p,1.);vView=-mv.xyz;gl_Position=projectionMatrix*mv;}`,
+fragmentShader:`uniform float uTime;varying vec3 vP;varying vec3 vN;varying vec3 vView;
+float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+void main(){vec3 p=normalize(vP)*5.;p+=vec3(uTime*.32,-uTime*.18,uTime*.12);float n=noise(p)*.55+noise(p*2.3)*.3+noise(p*5.1)*.15;float filament=pow(abs(sin(n*18.+vP.y*2.-uTime*.8)),6.);vec3 col=mix(vec3(.98,.32,.012),vec3(1.8,.85,.055),smoothstep(.27,.7,n));col=mix(col,vec3(2.9,1.65,.48),filament*.55);float rim=pow(1.-max(0.,dot(normalize(vN),normalize(vView))),3.);col+=rim*vec3(1.6,.95,.12);gl_FragColor=vec4(col,1.);}` }));orb.add(sun);
+const glow=new THREE.Mesh(new THREE.SphereGeometry(2.85,48,32),new THREE.MeshBasicMaterial({color:0xffd13b,transparent:true,opacity:.12,side:THREE.BackSide,depthWrite:false}));orb.add(glow);
+// Fully spherical solar prominences, distributed over the entire 3D surface.
+const corona=[];
+for(let i=0;i<60;i++){
+ const theta=i*2.399963229728653, y=1-2*(i+.5)/60, radial=Math.sqrt(1-y*y);
+ const direction=new THREE.Vector3(Math.cos(theta)*radial,y,Math.sin(theta)*radial);
+ const tangent=new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta));
+ const pts=[];
+ for(let j=0;j<=36;j++){
+  const u=j/36, height=.3+(i%7)*.17;
+  pts.push(direction.clone().multiplyScalar(2.45+height*Math.sin(Math.PI*u)).addScaledVector(tangent,(u-.5)*(.7+(i%4)*.2)));
+ }
+ const curve=new THREE.CatmullRomCurve3(pts);
+ const material=new THREE.MeshBasicMaterial({color:i%3?0xffbb23:0xffe879,transparent:true,opacity:.65,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+ const o=new THREE.Mesh(new THREE.TubeGeometry(curve,36,.048+(i%3)*.016,6,false),material);
+ orb.add(o);corona.push(o);
+ const haloMaterial=new THREE.MeshBasicMaterial({color:0xffc434,transparent:true,opacity:.10,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+ const halo=new THREE.Mesh(new THREE.TubeGeometry(curve,36,.18+(i%3)*.035,6,false),haloMaterial);
+ orb.add(halo);corona.push(halo);
+}
+// Final-bar supernova: expanding emissive shell and a spherical shockwave of rays.
+const blast=new THREE.Group();rotatingScene.add(blast);
+const blastCore=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshBasicMaterial({color:0xfff8cd,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+blast.add(blastCore);
+const blastShell=new THREE.Mesh(new THREE.SphereGeometry(1,48,32),new THREE.MeshBasicMaterial({color:0xffac13,wireframe:true,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false}));
+blast.add(blastShell);
+const blastRays=[];
+for(let i=0;i<110;i++){
+ const y=1-2*(i+.5)/110, a=i*2.399963229728653, r=Math.sqrt(1-y*y);
+ const dir=new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r);
+ const pts=[dir.clone().multiplyScalar(.6),dir.clone().multiplyScalar(2.2),dir.clone().multiplyScalar(5.0)];
+ const material=new THREE.MeshBasicMaterial({color:i%3===0?0xffffff:0xffd343,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending,toneMapped:false});
+ const ray=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),12,.028+(i%4)*.01,4,false),material);
+ blast.add(ray);blastRays.push(ray);
+}
+blast.visible=false;
+
+// Finale: thousands of glowing flowers and butterflies burst from the final beat,
+// then burn away gradually over sixty seconds. Canvas-generated original sprites.
+// Brazilian national colors: green, yellow, blue and white, with dark green
+// and turquoise accents. Each cloud gets its own silhouette, texture and size.
+const BRAZIL_PALETTE=[0x009b3a,0x006b32,0x48c85c,0xffdf00,0xffc400,0x002776,0x1559d8,0x5d98ff,0xffffff,0xe4f6e9];
+function finaleSprite(kind,variant){
+ const c=document.createElement('canvas');c.width=c.height=192;
+ const x=c.getContext('2d');x.translate(96,96);
+ const flower=kind==='flower';
+ if(flower){
+  const petals=[5,6,8,10,12,7][variant%6];
+  const shape=variant%6;
+  for(let i=0;i<petals;i++){
+   x.save();x.rotate(i*2*Math.PI/petals);
+   const length=[39,52,45,37,58,48][shape];
+   const width=[18,13,23,17,10,19][shape];
+   const g=x.createLinearGradient(0,-9,0,-length-19);
+   g.addColorStop(0,'rgba(255,255,255,.95)');
+   g.addColorStop(.35,shape%2?'rgba(245,255,194,.9)':'rgba(185,235,255,.9)');
+   g.addColorStop(1,'rgba(255,255,255,.12)');
+   x.fillStyle=g;x.strokeStyle='rgba(8,50,35,.7)';x.lineWidth=1.5;
+   x.beginPath();
+   if(shape===2||shape===5){
+    x.moveTo(0,-12);x.quadraticCurveTo(-width*1.8,-length*.8,0,-length-22);
+    x.quadraticCurveTo(width*1.8,-length*.8,0,-12);
+   }else if(shape===4){
+    x.moveTo(0,-10);x.lineTo(-width,-length*.8);x.lineTo(0,-length-20);
+    x.lineTo(width,-length*.8);x.closePath();
+   }else x.ellipse(0,-length*.62,width,length*.55,0,0,Math.PI*2);
+   x.fill();x.stroke();
+   // Fine vein texture, visible at larger particle sizes.
+   x.strokeStyle='rgba(20,65,35,.32)';x.lineWidth=1;
+   x.beginPath();x.moveTo(0,-13);x.lineTo(0,-length-13);x.stroke();
+   x.restore();
+  }
+  x.fillStyle='#ffe34d';x.strokeStyle='#0b673b';x.lineWidth=2;
+  x.beginPath();x.arc(0,0,10+shape%3*2,0,Math.PI*2);x.fill();x.stroke();
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;x.fillStyle='#174c24';x.beginPath();x.arc(Math.cos(a)*5,Math.sin(a)*5,1.4,0,Math.PI*2);x.fill();}
+ }else{
+  const wingType=variant%6;
+  for(const side of [-1,1]){
+   x.save();x.scale(side,1);
+   x.fillStyle='rgba(255,255,255,.95)';
+   x.strokeStyle='#07482d';x.lineWidth=3;
+   x.beginPath();x.moveTo(1,-7);
+   if(wingType===0||wingType===3){
+    x.bezierCurveTo(8,-58,76,-75,66,-22);x.bezierCurveTo(64,-2,27,0,4,5);
+   }else if(wingType===1||wingType===4){
+    x.bezierCurveTo(16,-36,73,-55,74,-18);x.bezierCurveTo(67,14,25,8,4,5);
+   }else{
+    x.bezierCurveTo(16,-65,52,-80,52,-29);x.bezierCurveTo(52,-8,26,0,4,5);
+   }
+   x.closePath();x.fill();x.stroke();
+   x.beginPath();x.moveTo(3,6);
+   x.bezierCurveTo(32,3,65,17,49,42);
+   x.bezierCurveTo(29,57,7,30,3,6);x.closePath();x.fill();x.stroke();
+   x.strokeStyle='rgba(0,75,40,.65)';x.lineWidth=1.5;
+   for(let j=0;j<4;j++){
+    x.beginPath();x.moveTo(4,0);x.lineTo(25+j*10,-32+j*7);x.stroke();
+   }
+   x.fillStyle=wingType%2?'#ffd900':'#0c46b6';
+   for(let j=0;j<4;j++){x.beginPath();x.arc(18+j*10,-18-(j%2)*9,3+j%2,0,Math.PI*2);x.fill();}
+   x.restore();
+  }
+  x.fillStyle='#104a30';x.beginPath();x.ellipse(0,4,4,30,0,0,Math.PI*2);x.fill();
+  x.strokeStyle='#104a30';x.lineWidth=2;
+  for(const side of [-1,1]){x.beginPath();x.moveTo(side*2,-21);x.quadraticCurveTo(side*13,-40,side*20,-36);x.stroke();}
+ }
+ const tex=new THREE.CanvasTexture(c);tex.colorSpace=THREE.SRGBColorSpace;
+ tex.anisotropy=4;return tex;
+}
+const finaleClouds=[];
+for(const kind of ['flower','butterfly']){
+ const total=kind==='flower'?4200:3200;
+ const variants=kind==='flower'?12:10;
+ for(let variant=0;variant<variants;variant++){
+  const n=Math.floor(total/variants)+(variant<total%variants?1:0);
+  const pos=new Float32Array(n*3),cols=new Float32Array(n*3),vel=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+   const y=1-2*Math.random(),a=Math.random()*Math.PI*2,r=Math.sqrt(1-y*y);
+   const sp=.32+Math.random()*1.65;
+   vel[i*3]=r*Math.cos(a)*sp;vel[i*3+1]=y*sp;vel[i*3+2]=r*Math.sin(a)*sp;
+   const color=new THREE.Color(BRAZIL_PALETTE[Math.floor(Math.random()*BRAZIL_PALETTE.length)]);
+   cols[i*3]=color.r;cols[i*3+1]=color.g;cols[i*3+2]=color.b;
+  }
+  const geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  geo.setAttribute('color',new THREE.BufferAttribute(cols,3));
+  const sizeFactor=.55+(variant%6)*.19+(kind==='butterfly'?.12:0);
+  const mat=new THREE.PointsMaterial({
+   map:finaleSprite(kind,variant),size:sizeFactor,transparent:true,opacity:0,
+   depthWrite:false,blending:THREE.NormalBlending,vertexColors:true,
+   sizeAttenuation:true,alphaTest:.045,toneMapped:true
+  });
+  const mesh=new THREE.Points(geo,mat);mesh.frustumCulled=false;scene.add(mesh);
+  finaleClouds.push({mesh,pos,vel,n,kind,baseSize:sizeFactor});
+ }
+}
+// Energy ribbons spiral outward in a spherical distribution, not a horizontal disc.
+for(let i=0;i<72;i++){
+ const phase=i*2.399963, y=1-2*(i+.5)/72, r=Math.sqrt(1-y*y);
+ const direction=new THREE.Vector3(Math.cos(phase)*r,y,Math.sin(phase)*r);
+ const tangent=new THREE.Vector3(-Math.sin(phase),0,Math.cos(phase));
+ const points3=[];
+ for(let j=0;j<=28;j++){
+  const u=j/28;
+  points3.push(new THREE.Vector3(0,2.5,0).addScaledVector(direction,.25+7.6*u).addScaledVector(tangent,Math.sin(u*Math.PI*3+i)*.32*u));
+ }
+ const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points3),36,.013+(i%4)*.009,5,false),tendrilMaterial.clone());
+ scene.add(tube);tendrils.push(tube);
+}
+// Uniform spherical particle cloud: no horizontal plane or platform.
+const count=3400,positions=new Float32Array(count*3),seed=new Float32Array(count*3);
+for(let i=0;i<count;i++){
+ const z=2*Math.random()-1,a=Math.random()*Math.PI*2,r=Math.cbrt(Math.random())*8.5;
+ const q=Math.sqrt(1-z*z);
+ seed[i*3]=r*q*Math.cos(a);seed[i*3+1]=2.5+r*z;seed[i*3+2]=r*q*Math.sin(a);
+ positions.set(seed.subarray(i*3,i*3+3),i*3);
+}
+const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(positions,3));
+const pm=new THREE.PointsMaterial({color:0xffaa55,size:.065,transparent:true,opacity:.65,depthWrite:false,blending:THREE.AdditiveBlending});
+const points=new THREE.Points(pg,pm);scene.add(points);
+// Camera-facing particle volume: fills the entire viewport even while the
+// ensemble rotates. A shader gives every particle a separate rhythmic flare.
+const screenCount=2600;
+const screenPos=new Float32Array(screenCount*3);
+const screenPhase=new Float32Array(screenCount);
+const screenSize=new Float32Array(screenCount);
+for(let i=0;i<screenCount;i++){
+ const depth=9+Math.random()*12;
+ // 66-degree vertical field of view; cover wide screens including 21:9.
+ screenPos[3*i]=(Math.random()*2-1)*depth*1.65;
+ screenPos[3*i+1]=(Math.random()*2-1)*depth*.73;
+ screenPos[3*i+2]=-depth;
+ screenPhase[i]=Math.random()*6.28318;
+ screenSize[i]=.5+Math.random()*1.7;
+}
+const screenGeo=new THREE.BufferGeometry();
+screenGeo.setAttribute('position',new THREE.BufferAttribute(screenPos,3));
+screenGeo.setAttribute('aPhase',new THREE.BufferAttribute(screenPhase,1));
+screenGeo.setAttribute('aSize',new THREE.BufferAttribute(screenSize,1));
+const particleUniforms={uBeat:{value:0},uTime:{value:0},uIntensity:{value:0}};
+const screenMat=new THREE.ShaderMaterial({
+ uniforms:particleUniforms,transparent:true,depthWrite:false,depthTest:false,
+ blending:THREE.AdditiveBlending,
+ vertexShader:`attribute float aPhase; attribute float aSize; varying float vPhase; uniform float uTime;
+ void main(){vPhase=aPhase; vec3 p=position; p.xy+=vec2(sin(uTime*.18+aPhase),cos(uTime*.13+aPhase))*0.22;
+ vec4 mv=modelViewMatrix*vec4(p,1.); gl_Position=projectionMatrix*mv;
+ gl_PointSize=min(11.,aSize*38./max(1.,-mv.z));}`,
+ fragmentShader:`uniform float uBeat; uniform float uIntensity; varying float vPhase;
+ void main(){vec2 d=gl_PointCoord-.5; float r=length(d);
+ float halo=exp(-r*r*35.); float core=exp(-r*r*145.);
+ float flicker=.75+.25*cos(vPhase); float light=(.18+1.8*uBeat)*flicker*uIntensity;
+ vec3 red=vec3(1.,.15,.055);vec3 gold=vec3(1.,.69,.23);
+ vec3 col=mix(red,gold,clamp(uIntensity*.8,0.,1.));
+ gl_FragColor=vec4(col*(halo*.55+core*2.)*light,clamp(halo*.24*light,0.,.85));}`
+});
+const screenParticles=new THREE.Points(screenGeo,screenMat);
+screenParticles.frustumCulled=false;camera.add(screenParticles);scene.add(camera);
+const spotlights=[];
+for(let i=0;i<7;i++){const light=new THREE.SpotLight(i%2?0xff7c35:0x9d56ff,48,18,.5,.55,1.2);light.position.set((i-3)*2.4,7,-4);light.target.position.set((i-3)*.9,1.5,0);scene.add(light,light.target);spotlights.push(light);}
+// Pivot containing performers, energy, and sun; lighting stays fixed.
+
+for(const m of musicians)rotatingScene.add(m.g);
+for(const f of floatingDrums)rotatingScene.add(f.ghost);
+rotatingScene.add(orb,points);
+for(const ribbon of tendrils)rotatingScene.add(ribbon);
+// Rotate around the group's approximate chest level, not around the floor.
+rotatingScene.position.y=0;
+let t=0,playing=false,last=performance.now();
+const TRANSITION_DURATION=20;
+// Intro: finale 200–210 fades in, 210–220 fades out over the new film.
+let transitionAge=-1;
+let introElapsed=0;
+let introActive=false;
+let introCompleted=false;
+let introFade=false;
+const loopEnabled=document.getElementById('loopEnabled');
+const speedInput=document.getElementById('speed'),speedLabel=document.getElementById('speedLabel');
+let filmSpeed=1;
+speedInput.oninput=()=>{filmSpeed=Number(speedInput.value);speedLabel.textContent=filmSpeed.toFixed(2).replace('.',',')+'×';if(filmSpeed===0){clearRiser();if(musicRunning)stopMusic();}else if(playing&&!introActive&&!musicRunning&&t<180){startMusic();}else if(musicRunning)syncMusicTempo(true);};
+const seek=document.getElementById('seek'),status=document.getElementById('status');
+const setSeekEnabled=enabled=>{seek.disabled=!enabled;seek.style.opacity=enabled?'1':'.4';seek.title=enabled?'Filmposition':'Während des Vorspanns nicht verfügbar';};
+setSeekEnabled(false);
+const musicStatus=document.getElementById('musicStatus');
+let strudel=null, audioReady=false, musicRunning=false, starting=false;
+let lastTempoUpdate=-Infinity,tempoBusy=false;
+let musicEnded=false;
+// Continuous Web Audio riser from 168s to the final downbeat at 180s.
+// Its automation follows film speed; all nodes are stopped on pause/seek.
+let finaleAudioCtx=null, riserNodes=null, finaleHitPlayed=false;
+function audioContext(){
+ if(!finaleAudioCtx)finaleAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+ if(finaleAudioCtx.state==='suspended')finaleAudioCtx.resume();
+ return finaleAudioCtx;
+}
+function clearRiser(){
+ if(!riserNodes)return;
+ try{riserNodes.osc.stop();riserNodes.noise.stop();}catch(e){}
+ for(const node of riserNodes.nodes){try{node.disconnect()}catch(e){}}
+ riserNodes=null;
+}
+function startRiser(){
+ if(riserNodes||!playing||!document.getElementById('sound').checked||filmSpeed===0)return;
+ const ctx=audioContext(),osc=ctx.createOscillator(),tone=ctx.createBiquadFilter(),
+       toneGain=ctx.createGain(),noise=ctx.createBufferSource(),
+       noiseFilter=ctx.createBiquadFilter(),noiseGain=ctx.createGain(),
+       master=ctx.createGain();
+ const buffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate),data=buffer.getChannelData(0);
+ for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+ noise.buffer=buffer;noise.loop=true;
+ osc.type='sawtooth';tone.type='lowpass';noiseFilter.type='bandpass';noiseFilter.Q.value=.8;
+ osc.connect(tone);tone.connect(toneGain);toneGain.connect(master);
+ noise.connect(noiseFilter);noiseFilter.connect(noiseGain);noiseGain.connect(master);
+ master.connect(ctx.destination);master.gain.value=0;
+ osc.start();noise.start();
+ riserNodes={osc,tone,toneGain,noise,noiseFilter,noiseGain,master,nodes:[osc,tone,toneGain,noise,noiseFilter,noiseGain,master]};
+}
+function updateRiser(){
+ if(!playing||filmSpeed===0||t<168||t>=180||!document.getElementById('sound').checked){clearRiser();return}
+ startRiser();if(!riserNodes)return;
+ const x=Math.max(0,Math.min(1,(t-168)/12)),a=riserNodes,now=audioContext().currentTime;
+ const volume=Number(document.getElementById('volume').value);
+ a.osc.frequency.setTargetAtTime(85+760*x*x,now,.035);
+ a.tone.frequency.setTargetAtTime(280+9500*x*x,now,.035);
+ a.noiseFilter.frequency.setTargetAtTime(450+10500*x*x,now,.035);
+ a.toneGain.gain.setTargetAtTime(.12+.17*x,now,.035);
+ a.noiseGain.gain.setTargetAtTime(.05+.32*x*x,now,.035);
+ a.master.gain.setTargetAtTime(volume*(.025+.33*x*x),now,.04);
+}
+// The final strike is deliberately a separate scheduled one-shot, so that
+// stopping the Strudel pattern at the boundary does not swallow the hit.
+function strikeAllInstruments(){
+ if(finaleHitPlayed)return;
+ finaleHitPlayed=true;clearRiser();
+ if(!document.getElementById('sound').checked)return;
+ const ctx=audioContext(),at=ctx.currentTime+.015;
+ const vol=Number(document.getElementById('volume').value);
+ const voices=[
+  // fundo, resposta, dobra, two timbaus, two caixas,
+  // two repiniques and two tamborims; layered synthetic drum attacks.
+  [63,.85,.43],[92,.76,.35],[128,.63,.27],
+  [178,.39,.22],[235,.30,.20],[330,.20,.17],[410,.17,.15],
+  [550,.13,.14],[690,.12,.13],[870,.09,.12],[1120,.08,.10]
+ ];
+ const finalChannels=['surdo-fundo','surdo-resposta','surdo-dobra','timbau','timbau','caixa','caixa','repinique','repinique','tamborim','tamborim'];
+ for(const [i,[freq,length,gain]] of voices.entries()){
+  const channelLevel=mixGain(finalChannels[i]);if(channelLevel===0)continue;
+  const osc=ctx.createOscillator(),amp=ctx.createGain(),filter=ctx.createBiquadFilter();
+  osc.type=freq<150?'sine':freq<450?'triangle':'square';
+  filter.type='lowpass';filter.frequency.value=Math.min(9500,freq*8);
+  osc.frequency.setValueAtTime(freq*1.35,at);
+  osc.frequency.exponentialRampToValueAtTime(freq,at+.055);
+  amp.gain.setValueAtTime(.0001,at);
+  amp.gain.exponentialRampToValueAtTime(Math.max(.0001,gain*.26*vol*channelLevel),at+.008);
+  amp.gain.exponentialRampToValueAtTime(.0001,at+length);
+  osc.connect(filter);filter.connect(amp);amp.connect(ctx.destination);
+  osc.start(at);osc.stop(at+length+.02);
+ }
+ // Full-velocity, broadband attack representing all sticks and hand slaps.
+ const noise=ctx.createBufferSource(),buf=ctx.createBuffer(1,Math.round(ctx.sampleRate*.18),ctx.sampleRate);
+ const samples=buf.getChannelData(0);for(let i=0;i<samples.length;i++)samples[i]=Math.random()*2-1;
+ noise.buffer=buf;
+ const hp=ctx.createBiquadFilter(),env=ctx.createGain();
+ hp.type='highpass';hp.frequency.value=1050;
+ env.gain.setValueAtTime(.0001,at);env.gain.exponentialRampToValueAtTime(.30*vol*mixGain('claps')*.8+.0001,at+.004);
+ env.gain.exponentialRampToValueAtTime(.0001,at+.14);
+ noise.connect(hp);hp.connect(env);env.connect(ctx.destination);
+ noise.start(at);noise.stop(at+.16);
+}
+
+// Original samba-reggae-inspired groove using actual sampled percussion from the Dirt sample bank.
+// Not a transcription or recording of Aainjaa. Each s(...) voice uses recorded samples.
+// Established samba-reggae ensemble roles: interlocking low/mid surdos,
+// continuous caixa subdivision, high repinique call and ensemble response.
+// Original patterns, NOT a verified transcription of any specific band.
+// Conga and rim sample names depend on the downloaded Dirt sample map; verify audibly in browser.
+const bpmAt=sec=>110+30*Math.min(1,Math.max(0,sec/180));
+const sections=[
+ {name:'Intro · Surdo-Ruf',start:0,end:12,type:'intro'},
+ {name:'Motor A · Aufbau',start:12,end:32,type:'a'},
+ {name:'Ruf / Antwort I',start:32,end:42,type:'call'},
+ {name:'Motor A · Voll',start:42,end:64,type:'aFull'},
+ {name:'Break · Caixa',start:64,end:72,type:'break'},
+ {name:'Motor B · Synkopen',start:72,end:96,type:'b'},
+ {name:'Ruf / Antwort II',start:96,end:108,type:'call2'},
+ {name:'Motor B · Steigerung',start:108,end:132,type:'bFull'},
+ {name:'Break · Repinique',start:132,end:140,type:'break2'},
+ {name:'Motor C · Höhepunkt',start:140,end:164,type:'climax'},
+ {name:'Finale · Unisono',start:164,end:174,type:'finale'},
+ {name:'Finaler Riser · Unisono',start:174,end:180,type:'outro'}
+];
+const sectionAt=sec=>Math.max(0,Math.min(sections.length-1,sections.findIndex(x=>sec>=x.start&&sec<x.end)<0?sections.length-1:sections.findIndex(x=>sec>=x.start&&sec<x.end)));
+// One 16-step event score shared by Strudel, hand animation and red plasma.
+// Audio is still scheduled by Strudel; browser visuals use the same score and
+// integrated BPM clock. Exact audio-event callback synchronization is future work.
+const STEP_SCORE={
+ 'surdo-fundo':{open:[0,8],mute:[6,14]},
+ 'surdo-resposta':{open:[4,12],mute:[2,10]},
+ 'surdo-dobra':{open:[2,7,10,15],mute:[5,13]},
+ timbau:{open:[0,8,12],slap:[3,7,11,15],mute:[2,6,10,14]},
+ caixa:{open:[0,2,4,6,8,10,12,14],slap:[1,3,5,7,9,11,13,15]},
+ repinique:{open:[0,4,7,10,12,15],slap:[2,5,8,11,14]},
+ tamborim:{open:[1,3,6,9,11,14],slap:[2,7,10,15]}
+};
+const scoreHit=(type,step)=>{
+ const score=STEP_SCORE[type];if(!score)return null;
+ for(const technique of ['open','slap','mute'])if(score[technique]?.includes(step))
+  return {technique,velocity:technique==='open'?1:technique==='slap'?.88:.52,
+   hand:step%2===0?'right':'left'};
+ return null;
+};
+const scorePattern=(type,technique,sample)=>Array.from({length:16},(_,i)=>
+ STEP_SCORE[type]?.[technique]?.includes(i)?sample:'~').join(' ');
+const scoreEnvelope=(type,stepFloat,technique=null)=>{
+ const idx=((Math.floor(stepFloat)%16)+16)%16;
+ const hit=scoreHit(type,idx);
+ if(!hit||(technique&&hit.technique!==technique))return 0;
+ return hit.velocity*Math.pow(1-(stepFloat-Math.floor(stepFloat)),2.5);
+};
+// Per-channel mixer is applied to every Strudel voice, not just the visuals.
+const MIX_CHANNELS=['surdo-fundo','surdo-resposta','surdo-dobra','timbau','caixa','repinique','tamborim','hi-hat','claps'];
+const mixState=Object.fromEntries(MIX_CHANNELS.map(k=>[k,{gain:1,solo:false,mute:false}]));
+const sampleChoice=Object.fromEntries(MIX_CHANNELS.map(k=>[k,'']));
+const SAMPLE_NAME=/^[a-zA-Z][a-zA-Z0-9_-]*$/;
+// Substitute only sound identifiers in a mini-pattern, leaving rests, brackets
+// and timing intact. Default keeps the existing layered instrument timbres.
+function replaceSample(pattern,channel){
+ const selected=sampleChoice[channel];
+ if(!selected||!SAMPLE_NAME.test(selected))return pattern;
+ return pattern.replace(/\b(bd|sd|sn|cp|rim|hh|conga|lt|mt|ht|drum|perc|tabla|co|gretsch|sh|tink|metal|808)\b/g,selected);
+}
+const BASE_MIX_GAIN={'repinique':.5,'caixa':.5,'hi-hat':.5,'claps':.5};
+function mixGain(key){
+ const state=mixState[key];if(!state)return 1;
+ const anySolo=MIX_CHANNELS.some(k=>mixState[k].solo);
+ return state.mute||(anySolo&&!state.solo)?0:state.gain*(BASE_MIX_GAIN[key]??1);
+}
+let mixUpdateQueued=false;
+function refreshMixerAudio(){
+ if(mixUpdateQueued)return;
+ mixUpdateQueued=true;
+ // Coalesce rapid slider input; do not queue multiple Strudel evaluations.
+ requestAnimationFrame(()=>{mixUpdateQueued=false;if(musicRunning)syncMusicTempo(true)});
+}
+for(const key of MIX_CHANNELS){
+ const state=mixState[key],slider=document.getElementById('mix-'+key);
+ slider.addEventListener('input',()=>{state.gain=Number(slider.value)/5;document.getElementById('mixout-'+key).textContent=Number(slider.value).toFixed(1);refreshMixerAudio()});
+ for(const kind of ['solo','mute'])document.querySelector('[data-'+kind+'="'+key+'"]').addEventListener('change',e=>{
+  state[kind]=e.target.checked;refreshMixerAudio();
+ });
+}
+document.getElementById('mixerReset').addEventListener('click',()=>{
+ for(const key of MIX_CHANNELS){
+  mixState[key]={gain:1,solo:false,mute:false};sampleChoice[key]='';document.getElementById('sample-'+key).value='';
+  document.getElementById('mix-'+key).value=5;
+  document.getElementById('mixout-'+key).textContent='5.0';
+  for(const kind of ['solo','mute'])document.querySelector('[data-'+kind+'="'+key+'"]').checked=false;
+ }
+ refreshMixerAudio();
+});
+let previewGeneration=0;
+for(const key of MIX_CHANNELS){
+ document.getElementById('sample-'+key).addEventListener('change',e=>{
+  sampleChoice[key]=e.target.value;refreshMixerAudio();
+ });
+ document.querySelector('[data-preview="'+key+'"]').addEventListener('click',async()=>{
+  const token=++previewGeneration;
+  const button=document.querySelector('[data-preview="'+key+'"]');
+  button.disabled=true;
+  try{
+   const mod=await loadStrudel();
+   const sound=sampleChoice[key]||({'surdo-fundo':'bd','surdo-resposta':'bd','surdo-dobra':'bd','timbau':'bd','caixa':'sd','repinique':'cp','tamborim':'rim','hi-hat':'hh','claps':'cp'}[key]);
+   // One isolated sound, repeated for a short audible audition.
+   await mod.evaluate('setcps(0.75); s("'+sound+' ~ '+sound+' ~").gain(0.45)');
+   await new Promise(resolve=>setTimeout(resolve,850));
+   if(token!==previewGeneration)return;
+   if(musicRunning){
+    await mod.evaluate(groove(Number(document.getElementById('volume').value),bpmAt(t)*Math.max(.01,filmSpeed),t));
+    lastTempoUpdate=t;
+   }else await mod.evaluate('hush()');
+  }catch(err){console.error('Sample-Vorschau:',err);musicStatus.textContent='Sample nicht verfügbar: '+err.message;}
+  finally{button.disabled=false;}
+ });
+}
+const voice=(pattern,gain,fx='')=>`s("${pattern}").gain(${Math.max(0,gain).toFixed(3)})${fx}`;
+const variations=[
+ {surdo:'bd ~ ~ bd ~ bd ~ ~',answer:'~ ~ bd ~ bd ~ ~ bd',caixa:'sd ~ sd sd ~ sd ~ sd',bell:'hh ~ hh ~ hh ~ hh ~'},
+ {surdo:'bd ~ ~ bd ~ bd ~ bd',answer:'~ bd ~ ~ bd ~ ~ bd',caixa:'sd sd sd ~ sd sd sd ~',bell:'hh ~ hh hh ~ hh ~ hh'},
+ {surdo:'bd ~ bd ~ ~ bd ~ bd',answer:'~ bd ~ bd ~ ~ bd ~',caixa:'sd ~ sd sd sd ~ sd sd',bell:'hh hh ~ hh hh ~ hh hh'}
+];
+function groove(gain,bpm,sec){
+ const ix=sectionAt(sec),part=sections[ix],f=(sec-part.start)/(part.end-part.start);
+ const v=Math.min(2,Math.floor(Math.max(0,f)*3)),g=Math.max(0,gain);
+ const p=variations[v],voices=[];
+ let channel='claps';
+ const add=(pattern,vol,fx='',override=null)=>{
+  const ch=override||(channel==='claps' ? (/\bhh\b/.test(pattern)?'hi-hat':/\bconga\b/.test(pattern)?'timbau':/\bsd\b/.test(pattern)?'caixa':/\brim\b/.test(pattern)?'tamborim':'claps') : channel);
+  voices.push(voice(replaceSample(pattern,ch),vol*g*mixGain(ch)*(ch==='claps'?.8:1),fx));
+ };
+ const inChannel=(ch,fn)=>{const before=channel;channel=ch;fn();channel=before;};
+ // Tuned acoustic approximations from Dirt samples. Each technique is a separate voice.
+ const surdos=()=>{
+  inChannel('surdo-fundo',()=>{add(scorePattern('surdo-fundo','open','bd'),.83,'.speed(.73).lpf(215).room(.09)');
+  add(scorePattern('surdo-fundo','mute','bd'),.17,'.speed(.77).hpf(75).lpf(450)');});
+  inChannel('surdo-resposta',()=>{add(scorePattern('surdo-resposta','open','bd'),.69,'.speed(.96).lpf(355).room(.07)');
+  add(scorePattern('surdo-resposta','mute','bd'),.13,'.speed(.98).hpf(90).lpf(560)');});
+  inChannel('surdo-dobra',()=>{add(scorePattern('surdo-dobra','open','bd'),.31,'.speed(1.19).lpf(490).hpf(65)');
+  add(scorePattern('surdo-dobra','mute','bd'),.11,'.speed(1.25).hpf(110).lpf(900)');});
+ };
+ const caixa=()=>{inChannel('caixa',()=>{
+  add(scorePattern('caixa','open','sd'),.21,'.hpf(650).lpf(7800).shape(.13)');
+  add(scorePattern('caixa','slap','sd'),.10,'.speed(1.13).hpf(1200).lpf(9000).shape(.18)');});
+ };
+ const core=()=>{surdos();caixa();add(p.bell,.065,'.hpf(4300)','hi-hat')};
+ const repi=(response=false)=>{inChannel('repinique',()=>{
+  add(scorePattern('repinique','open','cp'),response?.31:.28,'.hpf(900).lpf(8500).shape(.18)');
+  add(scorePattern('repinique','slap','rim'),.15,'.speed(1.15).hpf(1700).lpf(10500).shape(.20)');});
+ };
+ // Timbau: robust sounds from bd and rim (both already audible in this film).
+ // A low drum body + a high attack layer produces a clearly audible hand-drum.
+ const timbau=(busy=false)=>{inChannel('timbau',()=>{
+  add(scorePattern('timbau','open','bd'),.58,'.speed(1.8).hpf(145).lpf(2500).shape(.22)');
+  add(scorePattern('timbau','slap','rim'),.49,'.speed(.95).hpf(750).lpf(9200).shape(.33)');
+  add(scorePattern('timbau','mute','bd'),busy?.30:.22,'.speed(2.5).hpf(380).lpf(3300).shape(.22)');
+  add(scorePattern('timbau','slap','sd'),.19,'.speed(1.4).hpf(1200).lpf(9200)');
+ });};
+ // Tamborim: short high-pitched rim hits, syncopated, avoiding the surdo downbeats.
+ const tamborim=(response=false)=>{inChannel('tamborim',()=>{
+  add(scorePattern('tamborim','open','rim'),response?.17:.15,'.speed(1.65).hpf(1900).lpf(10500).shape(.18)');
+  add(scorePattern('tamborim','slap','rim'),.095,'.speed(1.93).hpf(2600).lpf(11500).shape(.24)');});
+ };
+ const lows=surdos;
+ const toms=()=>timbau(false);
+ switch(part.type){
+ case 'intro':
+  lows();if(v>=1){timbau(false);add('rim ~ ~ rim ~ ~ rim ~',.18);}
+  if(v>=2){add('sd ~ sd ~ sd ~ sd ~',.16,'.hpf(1000)');repi(true);tamborim()}break;
+ case 'a':case 'aFull':
+  core();repi(v%2===1);tamborim(v%2===1);timbau(false);if(v>=1)add('rim ~ rim ~ ~ rim ~ rim',.17);
+  // Timbau is present throughout this section, not just at the end.
+  if(part.type==='aFull')add('~ cp ~ cp [cp cp] ~ cp ~',.19);break;
+ case 'call':case 'call2':
+  lows();caixa();repi(v===1);timbau(false);
+  tamborim(v!==0);if(v===0){add('cp ~ [cp cp] ~ ~ ~ ~ ~',.55);add('rim ~ rim ~ ~ ~ ~ ~',.16)}
+  else if(v===1){add('~ ~ ~ ~ cp [cp cp] cp ~',.49);add('~ ~ ~ ~ rim ~ rim rim',.32,'.speed(.95).hpf(850)','timbau')}
+  else {add('[cp cp] ~ cp ~ [cp cp] ~ cp ~',.43);add('~ bd [bd bd] ~ bd ~ [bd bd] ~',.35,'.speed(1.8).hpf(200).lpf(3000)','timbau')}
+  break;
+ case 'break':case 'break2':
+  lows();caixa();
+  timbau(true);tamborim(v===2);
+  if(part.type==='break2'){repi(v===1);tamborim(v===1)}break;
+ case 'b':case 'bFull':
+  core();tamborim(v!==1);repi(v!==1);timbau(true);
+  if(v>=1)add('~ cp [cp cp] ~ cp ~ [cp cp] cp',.23);
+  if(v===2||part.type==='bFull')add('hh*16',.09,'.hpf(5400)');
+  break;
+ case 'climax':
+  core();repi(v===1);tamborim(v===1);timbau(true);
+  add('rim ~ rim rim ~ rim rim ~',.23);
+  add('~ cp [cp cp] cp ~ [cp cp] cp ~',.27);
+  if(v>=1)add('sd*16',.105,'.hpf(1500)');
+  if(v===2)add('hh*16',.11,'.hpf(5500)');break;
+ case 'finale':
+  core();repi(false);tamborim(true);timbau(true);
+  add(v===2?'sd*16':'sd*8',.19,'.hpf(1100)');break;
+ case 'outro':
+  // Keep the full percussion motor underneath the rising texture.
+  core();repi(true);tamborim(true);timbau(true);
+  add(f>.66?'hh*16':'hh*8',.12+.15*f,'.hpf(5000).room(.18)');
+  add(f>.83?'sd*16':'sd*8',.09+.13*f,'.hpf(1250).shape(.18)');
+  add(f>.83?'[rim rim rim rim]*4':'rim*8',.10+.14*f,'.speed(1.4).hpf(2100)');
+  break;
+ }
+ const remain=part.end-sec;
+ // Build-ups and end-of-section fills: last 2.5 seconds, density rises.
+ if(ix<sections.length-1 && remain<2.5){
+  const end=remain<.75;
+  add(end?'[rim rim rim] [rim rim rim] [rim rim rim] [rim rim rim]':'[rim rim] ~ [rim rim] ~',.19+.22*(1-remain/2.5),'.speed(.9).hpf(700).lpf(8500)','timbau');
+  add(end?'sd*16':'sd*8',.13+.13*(1-remain/2.5),'.hpf(1400)');
+  add(end?'hh*16':'hh*8',.06+.11*(1-remain/2.5),'.hpf(5800)');
+ }
+ // Layered, sample-based riser; not a tonal synth riser.
+ if(['aFull','bFull','climax','finale'].includes(part.type)&&f>.72)
+  add(f>.9?'hh*16':'hh*8',.06+.14*(f-.72)/.28,'.hpf(6200)');
+ return `setcps(${(bpm/240).toFixed(6)});\nstack(${voices.join(',')})`;
+}
+let lastSection=-1;
+let lastArrangementStep=-1;
+const arrangementStep=sec=>{const x=sections[sectionAt(sec)];return Math.floor(Math.min(.999,(sec-x.start)/(x.end-x.start))*3)};
+
+async function loadStrudel(){
+ if(strudel)return strudel;
+ musicStatus.textContent='Strudel und echte Trommelsamples werden geladen …';
+ const mod=await import('https://cdn.jsdelivr.net/npm/@strudel/web@latest/+esm');
+ if(typeof mod.initStrudel!=='function'||typeof mod.evaluate!=='function')throw new Error('Strudel-API nicht verfügbar');
+ await mod.initStrudel();
+ strudel=mod;
+ // Dirt samples: real recorded drum hits, fetched online on first use.
+ await mod.evaluate("samples('github:tidalcycles/dirt-samples')");
+ audioReady=true;
+ return mod;
+}
+async function startMusic(){
+ if(!document.getElementById('sound').checked || filmSpeed===0)return;
+ if(starting)return;
+ starting=true;
+ try{
+  const mod=await loadStrudel();
+  await mod.evaluate(groove(Number(document.getElementById('volume').value),bpmAt(t)*Math.max(.01,filmSpeed),t));
+  lastTempoUpdate=t;lastSection=sectionAt(t);lastArrangementStep=arrangementStep(t);
+  musicRunning=true;musicStatus.textContent='Strudel · '+sections[sectionAt(t)].name+' · '+Math.round(bpmAt(t))+' BPM';
+ }catch(err){console.error('Strudel:',err);musicStatus.textContent='Musikfehler: '+err.message+' (Konsole F12)';}
+ finally{starting=false;}
+}
+// Re-evaluate the COMPLETE pattern on tempo changes, never a bare setcps expression.
+async function syncMusicTempo(force=false){
+ if(!strudel||!musicRunning||tempoBusy||filmSpeed===0)return;
+ if(!force&&sectionAt(t)===lastSection&&arrangementStep(t)===lastArrangementStep&&Math.abs(t-lastTempoUpdate)<0.75)return;
+ tempoBusy=true;
+ try{
+  // evaluate() replaces the running pattern. Never evaluate only setcps():
+  // that would replace the groove with silence.
+  // Re-evaluate the complete stack with the new tempo and current gain.
+  await strudel.evaluate(groove(Number(document.getElementById('volume').value),bpmAt(t)*Math.max(.01,filmSpeed),t));
+  lastTempoUpdate=t;lastSection=sectionAt(t);lastArrangementStep=arrangementStep(t);
+  musicStatus.textContent='Strudel · '+sections[sectionAt(t)].name+' · '+Math.round(bpmAt(t))+' BPM';
+ }catch(err){console.warn('Tempo-Update:',err)}
+ finally{tempoBusy=false;}
+}
+async function stopMusic(){
+ if(!strudel||!musicRunning)return;
+ try{await strudel.evaluate('hush()');musicRunning=false;musicStatus.textContent='Musik pausiert';}
+ catch(err){console.error(err);musicStatus.textContent='Stop fehlgeschlagen: '+err.message;}
+}
+const upAxis=new THREE.Vector3(0,1,0);
+function alignLimb(obj,from,to,radius){
+ const delta=new THREE.Vector3().subVectors(to,from);
+ obj.position.copy(from).addScaledVector(delta,.5);
+ obj.quaternion.setFromUnitVectors(upAxis,delta.clone().normalize());
+ obj.scale.set(radius,delta.length(),radius);
+}
+function update(realT){
+const filmT=realT/3; // Visual transformation timeline; arm motion uses real seconds
+// Transformation starts at 6 s, then advances linearly until 60 s.
+const transformationProgress=clamp((realT-6)/174);
+const t=realT<6 ? filmT*.9 : 1.8+transformationProgress*6.2;
+const linear=(a,b,x)=>clamp((x-a)/(b-a));
+const finaleTime=Math.max(0,realT-180);
+const finaleActive=realT>=180;
+// A very brief initial flash; no persistent white blast or additive overexposure.
+const initialFlash=finaleActive?Math.pow(1-clamp(finaleTime/1.35),3):0;
+const tailFade=finaleActive?Math.pow(1-clamp(finaleTime/60),.72):1;
+// Surdo pulse: two strong low-drum accents per 4-beat bar, aligned to BPM ramp.
+const beatPhase=(110*realT+(30/360)*realT*realT)/60;
+const surdoPulse=Math.pow(Math.max(0,Math.cos(Math.PI*beatPhase)),10);
+// Four beats of the ending bar, with BPM 95 -> 120 continuously over 190 seconds.
+const totalBeats=(110*180+(30/360)*180*180)/60;
+const lastBarStart=(-110+Math.sqrt(110*110+4*(30/360)*60*(totalBeats-4)))/(2*(30/360));
+const explosion=clamp((realT-180)/60);
+const pulse=surdoPulse;
+// Per-instrument hit envelopes. Distinct accents and subdivisions create
+// flashes on the relevant instrument's strike, rather than the surdo only.
+function instrumentHit(type,index){
+ const step=beatPhase*4;
+ if(STEP_SCORE[type])return scoreEnvelope(type,step);
+ return 0;
+}
+
+let merge=linear(1.8,5.8,t),birth=linear(5.4,8,t);for(const m of musicians){let k=linear(2,5.6,t),dr=linear(4,6.4,t),a=m.i*2.39996; m.g.position.copy(m.base).lerp(new THREE.Vector3(Math.cos(a)*.65,2.6+Math.sin(a)*.6,0),k);m.g.scale.setScalar(Math.max(.001,1-linear(3.3,6.2,t)*.99));m.g.rotation.y=k*t*1.4;m.g.rotation.z=Math.sin(beatPhase*Math.PI*2+m.i*.4)*(.025+.10*k);
+m.body.rotation.y=Math.sin(beatPhase*Math.PI*.5)*.11*(1-k);
+m.body.rotation.z=Math.sin(beatPhase*Math.PI)*.085*(1-k);
+m.body.position.y=.055*Math.max(0,Math.sin(beatPhase*Math.PI*2+m.i*.2))*(1-k);
+m.g.position.y+=.065*surdoPulse*(1-k);
+m.d.rotation.x=Math.sin(beatPhase*Math.PI*2+m.i*.5)*(m.type==='tamborim'?.22:.075);
+m.d.scale.setScalar(1+.12*surdoPulse);m.molten.visible=realT>=6&&t<6.15;
+m.molten.scale.setScalar(.1+1.3*linear(2.15,4.8,t));
+m.molten.rotation.set(t*.8,m.i+t*.9,t*.4);
+// Build individual red plasma gradually over the first 60 seconds.
+const plasmaBuild=linear(6,60,realT);
+const smoothPlasma=plasmaBuild*plasmaBuild*(3-2*plasmaBuild);
+const plasmaExit=1-linear(5.75,6.15,t);
+m.molten.material.opacity=.85*smoothPlasma*plasmaExit;
+const hit=instrumentHit(m.type,m.i);
+// Hard red flashes: bloom reacts to the same per-player strike envelope.
+m.molten.material.color.setRGB(.55+.35*hit,.002,.018+.025*hit);
+m.molten.material.emissive.setRGB(1.8+5.0*hit,.002,.045+.05*hit);
+m.molten.material.emissiveIntensity=1.2+4.5*hit;
+m.drumMelt.visible=m.molten.visible;
+m.drumMelt.scale.setScalar(.2+1.5*linear(2.15,5.8,t));
+m.drumMelt.rotation.set(t*.6,m.i+t*.75,t*.45);
+m.drumMelt.material.opacity=m.molten.material.opacity;
+m.drumMelt.material.color.copy(m.molten.material.color);
+m.drumMelt.material.emissive.copy(m.molten.material.emissive);
+m.drumMelt.material.emissiveIntensity=1.2+4.5*hit;
+ // Place the independent corona groups at the animated player's and drum's position.
+ rotatingScene.updateMatrixWorld(true);
+ for(const [rays,core] of [[m.moltenRays,m.molten],[m.drumRays,m.drumMelt]]){
+   const world=core.getWorldPosition(new THREE.Vector3());
+   rays.position.copy(rotatingScene.worldToLocal(world));
+   rays.visible=m.molten.visible;
+ }
+ for(const rays of [m.moltenRays,m.drumRays]){
+  rays.rotation.set(t*.31+m.i*.1,t*.52,m.i*.2+t*.21);
+  rays.scale.setScalar((.22+.78*smoothPlasma)*(1+.14*hit+.035*Math.sin(realT*1.7+m.i)));
+  for(const ray of rays.children){
+   const visibility=m.molten.material.opacity;
+   const flash=Math.pow(hit,1.3);
+   ray.material.opacity=visibility*(ray.userData.isHalo ? (.13+.43*flash) : (.46+.65*flash));
+   ray.material.color.setRGB(ray.userData.isHalo?(1.5+3.1*flash):(2.2+4.3*flash),.001+(.025*flash),.004+(.015*flash));
+  }
+ }
+for(const l of m.limbs){
+ // Hands follow the same 16-step hit map used by the player's red light flashes.
+ // At each hit the wrist reaches the drumhead, then rebounds; alternating hands
+ // select successive strikes, rather than a free-running sine wave.
+ const side=l.side;
+ const step=beatPhase*4;
+ const currentStep=Math.floor(step+1e-7);
+ let impact=0;
+ if(STEP_SCORE[m.type]){
+  const strike=scoreHit(m.type,((currentStep%16)+16)%16);
+  const matchingHand=side===1?'right':'left';
+  impact=strike?.hand===matchingHand ? strike.velocity*Math.exp(-(step-Math.floor(step))*12):0;
+ }
+ const lift=.24*(1-impact)+.035*Math.sin(beatPhase*Math.PI*2+side);
+ const shoulder=new THREE.Vector3(side*(m.female?.32:.38),2.12,.04);
+ const elbow=new THREE.Vector3(side*(.44+.06*(1-impact)),1.83+.09*(1-impact),.38);
+ const headY=m.d.position.y+m.d.children[0].geometry.parameters.height/2;
+ const wrist=new THREE.Vector3(side*(.18+.09*(1-impact)),headY+.16+lift,.65);
+ const tip=new THREE.Vector3(side*.14,headY+.04+lift*.8,.58);
+ alignLimb(l.upper,shoulder,elbow,.105);
+ alignLimb(l.forearm,elbow,wrist,.083);
+ l.elbowJoint.position.copy(elbow);l.hand.position.copy(wrist);
+ alignLimb(l.stick,wrist,tip,.023);l.tip.position.copy(tip);
+}
+m.g.visible=t<7.7;
+const dissolve=linear(2.7,5.8,t);
+m.molten.material.emissiveIntensity=1.6+2*dissolve+surdoPulse;
+} 
+for(const f of floatingDrums){
+ const q=linear(3.0,5.5,t),finish=linear(5.6,7.1,t),a=f.i*2.39996+t*.8;
+ f.ghost.visible=t>3.0&&t<7.1;
+ f.ghost.position.copy(f.origin).lerp(new THREE.Vector3(Math.cos(a)*(.55+1.1*(1-q)),2.55+Math.sin(a*1.4)*.55,Math.sin(a)*(.6+1.3*(1-q))),q);
+ f.ghost.rotation.set(t*.8+f.i,t*1.4+f.i*.4,Math.sin(t+f.i));
+ f.ghost.scale.setScalar(Math.max(.001,(.15+.85*q)*(1-finish)));
+}
+for(let i=0;i<tendrils.length;i++){
+const a=tendrils[i];a.visible=t>2.3&&t<8.9;
+const k=linear(2.3,4.7,t)*(1-linear(7.6,9,t));
+// Grow and bloom in lockstep with the global sun/surdo pulse.
+const bloomPulse=Math.pow(surdoPulse,.65);
+a.scale.setScalar((.15+1.2*k)*(1+.28*bloomPulse));
+a.rotation.y=t*.8+i*.12;
+a.rotation.z=Math.sin(t*1.7+i)*.4;
+a.material.opacity=Math.min(1,.34*k+.66*k*Math.pow(surdoPulse,.65))*(finaleActive?initialFlash:1);
+a.material.color.setRGB(1.0+1.8*bloomPulse,.42+1.0*bloomPulse,.08+.28*bloomPulse);
+}
+orb.visible=t>3.6;orb.position.set(0,2.55,0);let s=.05+2.5*linear(4.1,8,t);// The sun grows toward the camera but its actual mesh surface never crosses it.
+// Cap the apparent sun radius to 78% of the half-height of the camera frustum.
+// The camera remains 23 units away during music and retreats after 180 s.
+const sceneScale=1;
+const sunGrowth=linear(140,180,realT);
+const requestedSunScale=(s/2.5)*(1+.055*surdoPulse);
+const cameraDistance=23.0;
+const sunRadius=2.5;
+const maxWorldRadius=cameraDistance*Math.tan(THREE.MathUtils.degToRad(66/2))*.78;
+const maxSunScale=maxWorldRadius/(sunRadius*sceneScale);
+orb.scale.setScalar(Math.min(requestedSunScale,maxSunScale));
+// Explode at the last strike; expand and fade over the 60-second visual epilogue.
+// The last audible strike at 180 s triggers the explosion; the tail is silent.
+for(const cloud of finaleClouds){
+ const {pos,vel,n,mesh}=cloud;
+ cloud.mesh.visible=finaleActive&&finaleTime<60;
+ if(!cloud.mesh.visible)continue;
+ // Six successive waves of petals and butterflies, launched throughout the finale.
+ // The staggered waves maintain visible motion even while the camera recedes.
+ const waveSpacing=8.5;
+ for(let i=0;i<n;i++){
+  const j=i*3;
+  const wave=i%6;
+  const age=finaleTime-wave*waveSpacing;
+  if(age<0){pos[j]=pos[j+1]=pos[j+2]=100000;continue;}
+  const travel=Math.pow(age,.88);
+  const twist=.18*age+(i%23)*.24;
+  const cs=Math.cos(twist),sn=Math.sin(twist);
+  const vx=vel[j],vz=vel[j+2];
+  pos[j]=(vx*cs-vz*sn)*travel+2.3*Math.sin(age*.22+i*.7);
+  pos[j+1]=2.55+vel[j+1]*travel+1.8*Math.sin(age*.38+i*.35);
+  pos[j+2]=(vx*sn+vz*cs)*travel;
+ }
+ mesh.geometry.attributes.position.needsUpdate=true;
+ // Normal alpha compositing keeps the colorful shapes legible rather than white.
+ mesh.material.opacity=Math.min(.74,.12+.62*tailFade);
+ mesh.material.size=cloud.baseSize*(1+.009*finaleTime);
+}
+blast.visible=initialFlash>.001;
+blast.position.copy(orb.position);
+blast.scale.setScalar(.5+3.5*(1-initialFlash));
+blastCore.scale.setScalar(.8+2*(1-initialFlash));
+blastCore.material.opacity=.22*initialFlash;
+blastShell.scale.setScalar(1+5*(1-initialFlash));
+blastShell.material.opacity=.32*initialFlash;
+for(const ray of blastRays){ray.material.opacity=.25*initialFlash;}
+sun.material.transparent=true;
+sun.material.opacity=finaleActive?Math.max(0,1-finaleTime/.9):1;
+orb.visible=!finaleActive||finaleTime<1.1;
+orb.rotation.y=t*.16;sunUniforms.uTime.value=realT*.35;sunUniforms.uPulse.value=pulse;glow.material.opacity=(.04+.18*birth+.10*surdoPulse)*(finaleActive?initialFlash:1);for(let i=0;i<corona.length;i++){
+ const filament=corona[i];
+ const bright=Math.pow(surdoPulse,.65);
+ filament.scale.setScalar(1+.09*Math.sin(t*2+i*.5)+.28*bright);
+ filament.material.opacity=((i%2===0 ? .58 : .20)+(i%2===0 ? .50 : .37)*bright)*(finaleActive?initialFlash:1);
+ filament.material.color.setRGB(1.8+3.0*bright,.85+2.2*bright,.12+.95*bright);
+ filament.material.toneMapped=false;
+}const arr=pg.attributes.position.array;for(let i=0;i<count;i++){let x=seed[i*3],y=seed[i*3+1],z=seed[i*3+2],ang=t*.3+i*.01,k=linear(2.3,7,t);arr[i*3]=(x*Math.cos(ang)-z*Math.sin(ang))*(1-k*.55);arr[i*3+1]=2.5+(y-2.5)*(1-k*.35);arr[i*3+2]=(x*Math.sin(ang)+z*Math.cos(ang))*(1-k*.55)}pg.attributes.position.needsUpdate=true;pm.opacity=.20+.30*linear(1.7,4,t)+.32*surdoPulse;
+particleUniforms.uBeat.value=surdoPulse;
+particleUniforms.uTime.value=realT;
+particleUniforms.uIntensity.value=.55+.45*linear(20,160,realT);
+
+for(let i=0;i<spotlights.length;i++)spotlights[i].intensity=48*(1-linear(3.5,7,t));
+// Continuous angular motion: no camera stop, reset or snap at 120 seconds.
+// The camera orbit accelerates smoothly over the full 180-second timeline.
+const orbit=.25*Math.min(realT,180)+.5*((2.05-.25)/180)*Math.min(realT,180)**2
+  + (realT>180 ? .42*(realT-180)+1.63*7*(1-Math.exp(-(realT-180)/7)) : 0);
+// The scene's three-axis spin starts from zero angular velocity at 120 s.
+// A quadratic angle gives linearly increasing angular speed, with no jump.
+const spinTime=Math.max(0,Math.min(realT,180)-120);
+rotatingScene.rotation.set(.0030*spinTime*spinTime,
+  .0038*spinTime*spinTime,
+  .0023*spinTime*spinTime);
+rotatingScene.scale.setScalar(1);
+const approach=clamp(filmT/60);
+const finalReveal=clamp((filmT-54)/6);
+// Group width ~9m. Elevated radius + wider FOV prevents clipping any player.
+// No camera zoom: the final sun grows within the field of view.
+// Fixed camera distance during music; smooth retreat throughout the 60-second explosion.
+// The scene itself grows after 120s; the camera does not dolly or zoom.
+// Continuous camera dolly-out after the final strike, while orbiting the blast.
+// Smoothstep starts with zero outward speed, then keeps receding.
+const finaleTravel=clamp((realT-180)/60);
+const r=23.0+67*(finaleTravel*finaleTravel*(3-2*finaleTravel));
+const target=new THREE.Vector3(0,1.35+1.35*finalReveal,0);
+const azimuth=orbit;
+const elevation=0.53;
+const horizontal=r*Math.cos(elevation);
+if(xrMode==='desktop')camera.position.set(target.x+Math.sin(azimuth)*horizontal,
+  target.y+r*Math.sin(elevation),target.z+Math.cos(azimuth)*horizontal);
+if(xrMode==='desktop')camera.lookAt(target);
+camera.fov=66;
+camera.updateProjectionMatrix();
+key.intensity=finaleActive?20+18*initialFlash:90+birth*120;
+bloom.strength=finaleActive ? .23+.4*initialFlash : .45+1.1*linear(4.4,8,t)+.55*surdoPulse+
+  .6*Math.max(...musicians.map(m=>instrumentHit(m.type,m.i)));
+renderer.toneMappingExposure=finaleActive?1.0:1.25;
+if(xrMode==='desktop')activeComposer.render();document.getElementById('miniStatus').textContent='Solar Rhythm · '+realT.toFixed(1)+' s · '+(loopEnabled.checked?'∞':'240 s');status.textContent=realT.toFixed(2)+' s / '+(loopEnabled.checked?'200 s je Durchlauf':'240 s');if(!introActive)seek.value=realT;const fmtTime=v=>`${Math.floor(v/60)}:${String(Math.floor(v%60)).padStart(2,'0')}`;document.getElementById('transportTime').textContent=fmtTime(realT)+' / '+fmtTime(loopEnabled.checked?200:240)}
+function renderFrame(){
+ if(xrMode!=='desktop'){
+  activeComposer=composer;update(t);
+  renderer.render(scene,camera);
+  return;
+ }
+ // The first ten seconds are a silent visual prologue: only the old
+ // finale (200–210) is rendered. The main film remains at t=0.
+ if(introActive && introElapsed<10){
+  activeComposer=nextComposer;
+  update(200+introElapsed);
+  nextBloom.strength=bloom.strength;
+  nextRenderer.toneMappingExposure=renderer.toneMappingExposure;
+  nextRenderer.domElement.style.opacity=String(Math.min(1,introElapsed/10));
+  renderer.domElement.style.opacity='0';
+  seek.value=0;setSeekEnabled(false);
+  document.getElementById('transportTime').textContent='Vorspann '+Math.floor(introElapsed)+' / 10 s';
+  return;
+ }
+ renderer.domElement.style.opacity='1';
+ const blending=transitionAge>=0&&transitionAge<TRANSITION_DURATION;
+ if(blending){
+  // At the initial start the finale is already at 210s; on repeat it
+  // starts at 200s. Both independent times are rendered every frame.
+  const oldTime=introFade?210+transitionAge:200+transitionAge;
+  activeComposer=nextComposer;update(oldTime);
+  nextBloom.strength=bloom.strength;
+  nextRenderer.toneMappingExposure=renderer.toneMappingExposure;
+  activeComposer=composer;update(t);
+  // First start: 210–220 fades out in 10s.
+  // Repeat: 200–220 fades out over 20s.
+  const alpha=introFade?1-transitionAge/10:1-transitionAge/20;
+  nextRenderer.domElement.style.opacity=String(Math.max(0,Math.min(1,alpha)));
+ }else{
+  nextRenderer.domElement.style.opacity='0';activeComposer=composer;update(t);
+ }
+}
+function loop(now){try{
+ const dt=Math.min((now-last)/1000,.08);last=now;
+ if(playing){
+  const advance=dt*filmSpeed;
+  if(introActive){
+   introElapsed+=advance;
+   if(introElapsed>=10){
+    const spill=introElapsed-10;
+    introElapsed=10;introActive=false;introCompleted=true;
+    introFade=true;transitionAge=spill;t=spill;setSeekEnabled(true);
+    if(filmSpeed>0&&t<180)startMusic().catch(console.error);
+   }
+  }else{
+   const previousTime=t;
+   t+=advance;
+   if(previousTime<180&&t>=180)strikeAllInstruments();
+   if(transitionAge>=0){
+    transitionAge+=advance;
+    if(transitionAge>=(introFade?10:20)){
+     transitionAge=-1;introFade=false;
+    }
+   }
+   if(loopEnabled.checked&&t>=200){
+    t%=200;finaleHitPlayed=false;clearRiser();
+    transitionAge=0;introFade=false;musicEnded=false;
+    Promise.resolve(stopMusic()).then(()=>{if(playing&&filmSpeed>0)startMusic()});
+   }else if(!loopEnabled.checked&&t>=240){
+    t=240;playing=false;stopMusic();
+   }else if(t>=180&&!musicEnded){musicEnded=true;stopMusic()}
+  }
+ }
+ updateRiser();renderFrame();
+ if(playing&&!introActive&&filmSpeed>0&&t<180)syncMusicTempo();
+}catch(e){console.error('Renderfehler:',e);status.textContent='Renderfehler: '+e.message;playing=false;}
+if(!renderer.xr.isPresenting)requestAnimationFrame(loop)}
+document.getElementById('quality').onchange=e=>{renderer.setPixelRatio(Math.min(devicePixelRatio,Number(e.target.value)));composer.setSize(viewport().w,viewport().h);nextRenderer.setPixelRatio(Math.min(devicePixelRatio,Number(e.target.value)));nextComposer.setSize(viewport().w,viewport().h);};
+document.getElementById('play').onclick=async()=>{
+ if(t>=240){t=0;introCompleted=false;setSeekEnabled(false);}
+ // Resume a paused prologue or transition without restarting it.
+ if(t===0&&!introCompleted&&!introActive&&transitionAge<0){
+  introActive=true;introElapsed=0;introFade=false;setSeekEnabled(false);
+ }
+ finaleHitPlayed=t>=180;musicEnded=t>=180;playing=true;
+ renderFrame();
+ if(!introActive){setSeekEnabled(true);}
+ if(!introActive&&t<180)startMusic().catch(e=>{console.error(e);status.textContent='Audiofehler: '+e.message});
+};
+document.getElementById('pause').onclick=()=>{playing=false;clearRiser();stopMusic()};
+document.getElementById('stop').onclick=()=>{
+ playing=false;t=0;introElapsed=0;introActive=false;introCompleted=false;introFade=false;transitionAge=-1;
+ finaleHitPlayed=false;musicEnded=false;clearRiser();stopMusic();
+ nextRenderer.domElement.style.opacity='0';renderer.domElement.style.opacity='1';
+ setSeekEnabled(false);seek.value=0;renderFrame();
+ document.getElementById('transportTime').textContent='0:00 / 4:00';
+};
+seek.oninput=e=>{
+ if(seek.disabled)return;
+ t=+e.target.value;introActive=false;introCompleted=true;
+ introFade=false;transitionAge=-1;clearRiser();
+ finaleHitPlayed=t>=180;musicEnded=t>=180;renderFrame();
+ if(t<180&&playing)startMusic().catch(console.error);else stopMusic();
+};
+document.getElementById('sound').onchange=e=>{
+ if(!e.target.checked)stopMusic();else if(playing&&!introActive&&t<180)startMusic();
+};
+document.getElementById('volume').oninput=()=>{if(musicRunning)syncMusicTempo(true)};
+const resizeStage=()=>{const {w,h}=viewport();camera.aspect=w/h;camera.updateProjectionMatrix();renderer.setSize(w,h);composer.setSize(w,h);nextRenderer.setSize(w,h);nextComposer.setSize(w,h)};
+addEventListener('resize',resizeStage);new ResizeObserver(resizeStage).observe(stage);
+try{if(!renderer.xr.isPresenting)requestAnimationFrame(loop)}catch(e){status.textContent='Fehler: '+e.message;console.error(e)}
+</script></body></html>
